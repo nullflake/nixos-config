@@ -1,0 +1,13 @@
+add_newline = true
+
+format = '$directory$character'
+
+[directory]
+style = 'bold cyan'
+truncation_length = 3
+truncate_to_repo = false
+read_only = ""
+
+[character]
+success_symbol = '[❯](bold magenta)'
+error_symbol = '[❯](bold red)'

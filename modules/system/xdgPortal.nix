@@ -12,15 +12,17 @@
     extraPortals = [
       pkgs.xdg-desktop-portal-gtk
     ]
-    ++ lib.optional (config.custom.windowManager == "hyprland") pkgs.xdg-desktop-portal-hyprland;
-    # umbriel provides its own xdg-desktop-portal-umbriel automatically,
-    # no need to add it here
+    ++ lib.optional (builtins.elem "hyprland" config.custom.windowManager) pkgs.xdg-desktop-portal-hyprland;
+    /*
+      umbriel provides its own xdg-desktop-portal-umbriel automatically,
+      no need to add it here
+    */
 
     config.common = {
-      default = [
-        (if config.custom.windowManager == "hyprland" then "hyprland" else "umbriel")
-      ]
-      ++ [ "gtk" ];
+      default =
+        (lib.optional (builtins.elem "hyprland" config.custom.windowManager) "hyprland")
+        ++ (lib.optional (builtins.elem "umbriel" config.custom.windowManager) "umbriel")
+        ++ [ "gtk" ];
       "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
       "org.freedesktop.impl.portal.AppChooser" = [ "gtk" ];
       "org.freedesktop.impl.portal.Settings" = [ "gtk" ];

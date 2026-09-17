@@ -43,6 +43,19 @@
         name: _:
         let
           host = import ./hosts/${name};
+
+          /*
+            flakeDir (toString ./.) points into the read-only Nix store
+            copy of this flake, with no .git — flake evaluation is
+            sandboxed, so ./. always resolves there. Right for values
+            baked into the built config.
+
+            flakeRoot is the real on-disk checkout at ~/nixos. Tools
+            that run git (cfg diff/log/push) or write flake.lock
+            (nixctl update, nh) need the actual git directory, so they
+            must use flakeRoot instead.
+          */
+          flakeRoot = "/home/${host.username}/nixos";
         in
         lib.nixosSystem {
           inherit (host) system;
@@ -51,6 +64,7 @@
             inherit inputs;
             username = host.username;
             flakeDir = toString ./.;
+            inherit flakeRoot;
           };
 
           modules = host.modules ++ [
@@ -74,6 +88,7 @@
                 inherit inputs;
                 username = host.username;
                 flakeDir = toString ./.;
+                inherit flakeRoot;
               };
             }
 

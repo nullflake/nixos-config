@@ -19,16 +19,17 @@ Hosts are auto-discovered from the `hosts/` directory (see `flake.nix`), so addi
 `nixctl` wraps common `nixos-rebuild` / `nh` operations.
 
 ```bash
-nixctl switch    # Apply current configuration
-nixctl update    # Update flake inputs, validate, build, then switch
-nixctl boot      # Build and set next boot entry
-nixctl rollback  # Switch to previous generation
-nixctl list      # List system generations
-nixctl diff [<gen>-<gen>]  # Diff store paths between two generations (defaults to current vs previous)
-nixctl find <query>        # Search Nix store
-nixctl find <query> -fzf   # Select a store path with fzf and open it in Yazi
-nixctl clean               # Remove old generations (keeps 1)
-nixctl clean keep <N>      # Keep N generations
+nixctl boot                 # Build and set next boot entry (nh os boot)
+nixctl clean                # Remove old generations (keeps 1 via nh clean)
+nixctl clean keep <N>       # Keep N generations (nh clean all --keep N)
+nixctl diff [<gen>-<gen>]   # Diff store paths between two generations
+nixctl find <query>         # Search Nix store
+nixctl find <query> -fzf    # Select a store path with fzf and open it in Yazi
+nixctl list                 # List system generations
+nixctl rollback             # Switch to previous generation
+nixctl switch               # Apply current configuration (nh os switch)
+nixctl update               # Update flake inputs, validate, build, and switch
+nixctl verify               # Verify and repair the Nix store
 ```
 
 ## Configuration commands
@@ -75,13 +76,13 @@ vpn down          # Disconnect ProtonVPN
 vpn status        # Show ProtonVPN status
 
 zapret up|down|status  # Start/stop/status the zapret DPI-desync service
-                         # (auto-toggled by a NetworkManager dispatcher when a VPN interface goes up/down)
+                       # (auto-toggled by a NetworkManager dispatcher when a VPN interface goes up/down)
 
 vault mount    # Mount the VeraCrypt container
 vault unmount  # Unmount the VeraCrypt container
 
 helium version      # Compare installed Helium version against latest GitHub release
-helium bump [ver]    # Update pkgs/helium.json to a new version (fetches, verifies, hashes)
+helium bump [ver]   # Update pkgs/helium.json to a new version (fetches, verifies, hashes)
 
 network   # Show current public IP, geo location, and active DNS resolver
 phone <pin> [args]  # Unlock a connected Android device via adb and start scrcpy

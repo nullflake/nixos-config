@@ -2,52 +2,30 @@ nixctl() {
   local host="$(hostname)"
 
   case "$1" in
-    list)
-      sudo nix-env --list-generations --profile /nix/var/nix/profiles/system | cat
-      ;;
-    update)
-      echo "Updating flake inputs..."
-      if ! nix flake update --flake "$FLAKE"; then
-        echo "Error: flake update failed." >&2
-        return 1
-      fi
-
-      echo "Validating configuration (nix flake check)..."
-      if ! nix flake check "$FLAKE" --no-build; then
-        echo "Error: flake check failed. Not switching." >&2
-        echo "Fix the issue, or run 'cfg diff' to review flake.lock changes." >&2
-        return 1
-      fi
-
-      echo "Building configuration (without activating)..."
-      if ! sudo nixos-rebuild build --flake "$FLAKE#$host"; then
-        echo "Error: build failed. Not switching." >&2
-        return 1
-      fi
-
-      echo "Build succeeded. Switching..."
-      if command -v nh >/dev/null 2>&1; then
-        nh os switch
-      else
-        sudo nixos-rebuild switch --flake "$FLAKE#$host"
-      fi
-      ;;
-    switch)
-      if command -v nh >/dev/null 2>&1; then
-        nh os switch
-      else
-        sudo nixos-rebuild switch --flake "$FLAKE#$host"
-      fi
-      ;;
     boot)
-      if command -v nh >/dev/null 2>&1; then
-        nh os boot
-      else
-        sudo nixos-rebuild boot --flake "$FLAKE#$host"
-      fi
+      nh os boot
       ;;
-    rollback)
-      sudo nixos-rebuild switch --rollback
+    clean)
+      local keep_count=1
+
+      case "$2" in
+        "")
+          keep_count=1
+          ;;
+        keep)
+          if [[ -z "$3" || ! "$3" =~ ^[0-9]+$ ]]; then
+            echo "Usage: nixctl clean keep <N>"
+            return 1
+          fi
+          keep_count="$3"
+          ;;
+        *)
+          echo "Usage: nixctl clean | nixctl clean keep <N>"
+          return 1
+          ;;
+      esac
+
+      nh clean all --keep "$keep_count"
       ;;
     diff)
       local profile="/nix/var/nix/profiles/system"
@@ -108,49 +86,49 @@ nixctl() {
         find /nix/store -maxdepth 1 -name "*$2*"
       fi
       ;;
-    clean)
-      local keep_count=1
-
-      case "$2" in
-        "")
-          keep_count=1
-          ;;
-        keep)
-          if [[ -z "$3" || ! "$3" =~ ^[0-9]+$ ]]; then
-            echo "Usage: nixctl clean keep <N>"
-            return 1
-          fi
-          keep_count="$3"
-          ;;
-        *)
-          echo "Usage: nixctl clean | nixctl clean keep <N>"
-          return 1
-          ;;
-      esac
-
-      if command -v nh >/dev/null 2>&1; then
-        nh clean all --keep "$keep_count"
-      else
-        if [ "$keep_count" -eq 1 ]; then
-          sudo nix-collect-garbage -d
-        else
-          sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations "+$keep_count"
-          sudo nix-collect-garbage
-        fi
+    list)
+      sudo nix-env --list-generations --profile /nix/var/nix/profiles/system | cat
+      ;;
+    rollback)
+      sudo nixos-rebuild switch --rollback
+      ;;
+    switch)
+      nh os switch
+      ;;
+    update)
+      echo "Updating flake inputs..."
+      if ! nix flake update --flake "$FLAKE"; then
+        echo "Error: flake update failed." >&2
+        return 1
       fi
+
+      echo "Validating configuration (nix flake check)..."
+      if ! nix flake check "$FLAKE" --no-build; then
+        echo "Error: flake check failed. Not switching." >&2
+        echo "Fix the issue, or run 'cfg diff' to review flake.lock changes." >&2
+        return 1
+      fi
+
+      echo "Building and switching..."
+      nh os switch
+      ;;
+    verify)
+      echo "Verifying and repairing nix store..."
+      sudo nix-store --verify --check-contents --repair
       ;;
     *)
       echo "Usage: nixctl <command> [arguments]"
       echo ""
       echo "Commands:"
-      echo "  list"
-      echo "  update"
-      echo "  switch"
       echo "  boot"
-      echo "  rollback"
+      echo "  clean | clean keep <N>"
       echo "  diff"
       echo "  find <query> [-fzf]"
-      echo "  clean | clean keep <N>"
+      echo "  list"
+      echo "  rollback"
+      echo "  switch"
+      echo "  update"
+      echo "  verify"
       return 1
       ;;
   esac
@@ -171,7 +149,7 @@ _nixctl_completion() {
       compadd $find_opts
       ;;
     *)
-      subcommands=(list update switch boot rollback diff find clean)
+      subcommands=(boot clean diff find list rollback switch update verify)
       compadd $subcommands
       ;;
   esac

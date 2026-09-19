@@ -21,7 +21,7 @@ helium() {
         echo "update available: $current -> $latest"
       fi
       ;;
-    bump)
+    update)
       local VERSION="$2"
 
       # Fetch latest version if not specified
@@ -82,7 +82,7 @@ helium() {
       echo "Updated: $VERSION -> $HASH"
       ;;
     *)
-      echo "Usage: helium [version|bump [version]]" >&2
+      echo "Usage: helium [version|update [version]]" >&2
       return 1
       ;;
   esac
@@ -91,7 +91,7 @@ helium() {
 # Autocompletion for helium
 _helium_completion() {
   local -a subcommands
-  subcommands=(version bump)
+  subcommands=(version update)
   compadd $subcommands
 }
 compdef _helium_completion helium

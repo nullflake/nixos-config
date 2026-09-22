@@ -135,8 +135,7 @@ in
         Stable /dev/input/by-id/... evdev device path used for PTT.
       '';
 
-      example =
-        "/dev/input/by-id/usb-Vendor_Mouse_SERIAL-event-mouse";
+      example = "/dev/input/by-id/usb-Vendor_Mouse_SERIAL-event-mouse";
     };
 
     button = lib.mkOption {
@@ -181,8 +180,7 @@ in
         ExecStart = lib.getExe pttScript;
 
         # Fail closed when systemd stops the service for any reason.
-        ExecStopPost =
-          "-${wpctl} set-mute @DEFAULT_AUDIO_SOURCE@ 1";
+        ExecStopPost = "-${wpctl} set-mute @DEFAULT_AUDIO_SOURCE@ 1";
 
         Restart = "on-failure";
         RestartSec = "2s";

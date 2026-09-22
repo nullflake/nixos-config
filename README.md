@@ -47,7 +47,7 @@ cfg copy raw    # Copy configuration files (no headers) to clipboard as text
 cfg track       # Stage changes
 cfg discard     # Discard uncommitted changes (reset --hard + clean -fd)
 cfg fmt         # Run `nix fmt` on the flake
-cfg push "msg"  # Commit, rebase onto upstream, and push
+cfg push        # Commit, rebase onto upstream, and push
 cfg rewind <commit>  # Hard reset to a commit and force-push (rewrites remote history)
 ```
 
@@ -82,7 +82,7 @@ vault mount    # Mount the VeraCrypt container
 vault unmount  # Unmount the VeraCrypt container
 
 helium version      # Compare installed Helium version against latest GitHub release
-helium bump [ver]   # Update pkgs/helium.json to a new version (fetches, verifies, hashes)
+helium update [ver] # Update pkgs/helium.json to a new version (fetches, verifies, hashes)
 
 network   # Show current public IP, geo location, and active DNS resolver
 phone <pin> [args]  # Unlock a connected Android device via adb and start scrcpy

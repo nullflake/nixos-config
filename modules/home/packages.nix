@@ -30,6 +30,7 @@
     ddcutil
     dnsutils
     ente-cli
+    evtest
     file
     fzf
     git

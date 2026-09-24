@@ -26,15 +26,52 @@ let
       button=${toString cfg.button}
 
       state_file="$RUNTIME_DIRECTORY/held"
+      applied_file="$RUNTIME_DIRECTORY/applied"
+      override_file="$RUNTIME_DIRECTORY/override"
       lock_file="$RUNTIME_DIRECTORY/lock"
 
+      # Reads the *actual* current mute state of the default audio
+      # source, independent of what we think we last set. Prints
+      # "0"/"1", or nothing if the source is unavailable.
+      get_actual_mute() {
+        local out
+        out=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null) || {
+          printf ""
+          return
+        }
+
+        case "$out" in
+          *MUTED*)
+            printf '1'
+            ;;
+          *)
+            printf '0'
+            ;;
+        esac
+      }
+
       sync_state() {
-        local requested_state="''${1:-}"
+        # Explicit calls (button events, startup, device
+        # (re)connect) always force the state. Periodic watchdog
+        # calls (no argument) instead check whether the mute state
+        # was changed manually (e.g. from the sound control
+        # center) and, if so, leave it alone.
+        local explicit=0
+        local requested_state=""
+
+        if [ $# -ge 1 ]; then
+          explicit=1
+          requested_state="$1"
+        fi
 
         (
           flock -x 200
 
-          if [ -n "$requested_state" ]; then
+          if [ "$explicit" = "1" ]; then
+            # A button event (or any other explicit call) always
+            # wins: leave override mode and force the requested
+            # state.
+            printf '0\n' > "$override_file"
             printf '%s\n' "$requested_state" > "$state_file"
           fi
 
@@ -52,29 +89,63 @@ let
 
           local target_mute=$((1 - held))
 
-          # PipeWire/WirePlumber may be temporarily unavailable while
-          # starting, restarting, or recreating an audio source.
-          # Retry locally, then let the watchdog retry later.
-          for _ in 1 2 3 4 5; do
-            if wpctl set-mute \
-              @DEFAULT_AUDIO_SOURCE@ "$target_mute" \
-              >/dev/null 2>&1
-            then
-              break
-            fi
+          local override
+          override=$(cat "$override_file" 2>/dev/null || printf '0\n')
 
-            sleep 0.2
-          done
+          local skip=0
+
+          if [ "$explicit" != "1" ] && [ "$override" = "1" ]; then
+            # We're already respecting a manual change from the
+            # sound control center. Stay out of it entirely until
+            # the next button press/release.
+            skip=1
+          elif [ "$explicit" != "1" ]; then
+            local actual_mute
+            actual_mute=$(get_actual_mute)
+
+            local last_applied
+            last_applied=$(cat "$applied_file" 2>/dev/null || printf "")
+
+            if [ -n "$actual_mute" ] && [ -n "$last_applied" ] \
+              && [ "$actual_mute" != "$last_applied" ]
+            then
+              # Manual override just happened: remember it and
+              # back off persistently, not just for this one tick.
+              printf '1\n' > "$override_file"
+              printf '%s\n' "$actual_mute" > "$applied_file"
+              skip=1
+            fi
+          fi
+
+          if [ "$skip" != "1" ]; then
+            # PipeWire/WirePlumber may be temporarily unavailable
+            # while starting, restarting, or recreating an audio
+            # source. Retry locally, then let the watchdog retry
+            # later.
+            for _ in 1 2 3 4 5; do
+              if wpctl set-mute \
+                @DEFAULT_AUDIO_SOURCE@ "$target_mute" \
+                >/dev/null 2>&1
+              then
+                printf '%s\n' "$target_mute" > "$applied_file"
+                break
+              fi
+
+              sleep 0.2
+            done
+          fi
         ) 200>"$lock_file"
       }
 
       # Fail closed from the beginning.
       printf '0\n' > "$state_file"
+      printf '0\n' > "$override_file"
       sync_state 0
 
-      # Re-apply the desired state periodically. This matters when
-      # WirePlumber recreates the default source or changes it after
-      # a device/profile transition.
+      # Re-apply the desired state periodically, unless the mute
+      # state was changed manually in the meantime. This matters
+      # when WirePlumber recreates the default source or changes it
+      # after a device/profile transition.
       (
         while true; do
           sleep 3

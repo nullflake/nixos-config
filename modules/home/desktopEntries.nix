@@ -48,5 +48,24 @@
         StartupWMClass = "chrome-mail.google.com__-Default";
       };
     };
+
+    steam = {
+      name = "Steam";
+      genericName = "PC Gaming Platform";
+      comment = "Application for managing and playing games on Steam";
+      exec = "steam -tenfoot %U";
+      icon = "steam";
+      terminal = false;
+      type = "Application";
+      categories = [
+        "Network"
+        "FileTransfer"
+        "Game"
+      ];
+      mimeType = [
+        "x-scheme-handler/steam"
+        "x-scheme-handler/steamlink"
+      ];
+    };
   };
 }

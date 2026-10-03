@@ -5,7 +5,7 @@
       name = "Micro Text Editor";
       genericName = "Text Editor";
       comment = "Modern and intuitive terminal-based text editor";
-      exec = "kitty -e micro %U";
+      exec = "kitty --class micro -e micro %U";
       terminal = false;
       icon = "micro";
       type = "Application";
@@ -19,6 +19,9 @@
         "application/x-zerosize"
         "inode/x-empty"
       ];
+      settings = {
+        StartupWMClass = "micro";
+      };
     };
 
     Emulator = {

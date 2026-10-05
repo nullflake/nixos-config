@@ -39,6 +39,7 @@
     micro
     nvd
     ookla-speedtest
+    protonmail-desktop
     proton-vpn-cli
     python3
     rclone

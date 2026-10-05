@@ -21,6 +21,11 @@
       url = "git+https://github.com/noctalia-dev/umbriel";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    desktop-icons = {
+      url = "git+ssh://git@github.com/nullflake/desktop-icons.git";
+      flake = false;
+    };
   };
 
   outputs =
@@ -72,7 +77,14 @@
               nixpkgs.overlays = [
                 (final: prev: {
                   helium = prev.callPackage ./pkgs/helium.nix { };
-                  morewaitaFiltered = prev.callPackage ./pkgs/morewaitaFiltered.nix { };
+
+                  desktopIcons = prev.callPackage ./pkgs/desktopIcons.nix {
+                    desktop-icons-src = inputs.desktop-icons;
+                  };
+
+                  yaruCustom = prev.callPackage ./pkgs/yaruCustom.nix {
+                    desktop-icons = final.desktopIcons;
+                  };
                 })
               ];
             }

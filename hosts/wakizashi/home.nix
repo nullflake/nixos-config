@@ -28,8 +28,8 @@
   # Home Configuration
   custom = {
     theme.icon = {
-      name = "MoreWaita";
-      package = pkgs.morewaitaFiltered;
+      name = "Yaru-Custom";
+      package = pkgs.yaruCustom;
     };
   };
 

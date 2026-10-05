@@ -1,4 +1,3 @@
-{ flakeDir, ... }:
 {
   xdg.desktopEntries = {
     micro = {
@@ -34,24 +33,6 @@
       };
     };
 
-    Gmail = {
-      name = "Gmail";
-      genericName = "Mail Client";
-      comment = "Google Workspace Mail PWA";
-      exec = "helium --app=https://mail.google.com";
-      terminal = false;
-      icon = "${flakeDir}/assets/images/gmail.svg";
-      type = "Application";
-      categories = [
-        "Network"
-        "Email"
-      ];
-      mimeType = [ "x-scheme-handler/mailto" ];
-      settings = {
-        StartupWMClass = "chrome-mail.google.com__-Default";
-      };
-    };
-
     steam = {
       name = "Steam";
       genericName = "PC Gaming Platform";
@@ -68,6 +49,30 @@
       mimeType = [
         "x-scheme-handler/steam"
         "x-scheme-handler/steamlink"
+      ];
+    };
+
+    protontricks = {
+      name = "Protontricks";
+      exec = "protontricks";
+      icon = "protontricks";
+      terminal = false;
+      type = "Application";
+      categories = [
+        "Utility"
+        "Game"
+      ];
+    };
+
+    veracrypt = {
+      name = "VeraCrypt";
+      exec = "veracrypt %U";
+      icon = "veracrypt";
+      terminal = false;
+      type = "Application";
+      categories = [
+        "Utility"
+        "Security"
       ];
     };
   };

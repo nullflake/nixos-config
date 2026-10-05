@@ -4,7 +4,7 @@
     enable = true;
     defaultApplications = {
       # Mail
-      "x-scheme-handler/mailto" = [ "Gmail.desktop" ];
+      "x-scheme-handler/mailto" = [ "protonmail-desktop.desktop" ];
 
       # Browser
       "text/html" = [ "helium.desktop" ];

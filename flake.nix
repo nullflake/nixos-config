@@ -23,7 +23,7 @@
     };
 
     desktop-icons = {
-      url = "git+ssh://git@github.com/nullflake/desktop-icons.git";
+      url = "github:nullflake/desktop-icons";
       flake = false;
     };
   };

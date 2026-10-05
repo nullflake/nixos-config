@@ -47,7 +47,7 @@ cfg copy raw    # Copy configuration files (no headers) to clipboard as text
 cfg track       # Stage changes
 cfg discard     # Discard uncommitted changes (reset --hard + clean -fd)
 cfg fmt         # Run `nix fmt` on the flake
-cfg push        # Commit, rebase onto upstream, and push
+cfg push        # Stage all, commit (opens editor), rebase onto upstream, and push
 cfg rewind <commit>  # Hard reset to a commit and force-push (rewrites remote history)
 ```
 
@@ -66,7 +66,7 @@ hypr clients  # List Hyprland clients
 
 umb edit        # Open Umbriel user config in Yazi
 umb tree        # Show Umbriel config tree
-umb copy [raw]  # Copy Umbriel *.toml config files to clipboard
+umb copy [raw]  # Copy Umbriel *.toml config files to clipboard (as a file, or as text with raw)
 umb reload      # Reload Umbriel config
 umb windows     # List Umbriel windows
 umb keybinds    # Open Umbriel keybind cheatsheet
@@ -85,7 +85,6 @@ helium version      # Compare installed Helium version against latest GitHub rel
 helium update [ver] # Update pkgs/helium.json to a new version (fetches, verifies, hashes)
 
 network   # Show current public IP, geo location, and active DNS resolver
-phone <pin> [args]  # Unlock a connected Android device via adb and start scrcpy
 triplist  # Print a small reference list of trusted IPs
 fn [dir]  # List defined shell function names from *.zsh files in a directory
 kitty opacity [VALUE]  # Get/set Kitty terminal background opacity
@@ -100,7 +99,7 @@ modules/
   system/   # Reusable NixOS modules (audio, boot, networking, DNS, greeter, Nvidia, window manager, zapret, ...)
   home/     # Reusable Home Manager modules (shell, editor, theming, packages, dotfile-managed apps, ...)
 assets/     # Application configuration files (fastfetch, starship, ASCII art, images) consumed by home modules
-pkgs/       # Custom packages (helium browser, filtered MoreWaita icon theme) exposed via a flake overlay
+pkgs/       # Custom packages (helium browser, custom Yaru icon theme built from the desktop-icons input) exposed via a flake overlay
 scripts/    # Zsh functions, concatenated into programs.zsh.initContent by modules/home/zsh.nix
 ```
 

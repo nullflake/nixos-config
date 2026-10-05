@@ -1,9 +1,12 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 {
   # Enable OpenGL / Vulkan graphic drivers, both 64-bit and 32-bit
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
+
+    # VA-API -> NVDEC bridge; LIBVA_DRIVER_NAME=nvidia below needs it
+    extraPackages = [ pkgs.nvidia-vaapi-driver ];
   };
 
   # Load Nvidia driver for X11 and Wayland sessions
@@ -16,27 +19,28 @@
     powerManagement.enable = true;
     powerManagement.finegrained = false;
     powerManagement.kernelSuspendNotifier = true;
-    # Keeps GPU power state active to prevent stuttering when opening apps
+    # Keeps the driver initialized without a client attached
     nvidiaPersistenced = true;
     # Disable GUI settings app
     nvidiaSettings = false;
-    # Use open-source kernel modules (recommended for GTX 16xx / RTX / Turing+ cards)
+    # Use open-source kernel modules (Turing and newer)
     open = true;
-    # Always use the latest production driver
+    # Newest stable driver branch in nixpkgs (paired with linuxPackages_latest)
     package = config.boot.kernelPackages.nvidiaPackages.latest;
   };
 
   # Hardware acceleration and display settings for Nvidia
   environment.sessionVariables = {
-    # Forces VA-API driver to use Nvidia for hardware video decoding
+    # Makes libva load nvidia-vaapi-driver for hardware video decoding
     LIBVA_DRIVER_NAME = "nvidia";
     # Forces OpenGL applications to use the Nvidia vendor library
     __GLX_VENDOR_LIBRARY_NAME = "nvidia";
     # Sets the Generic Buffer Management backend
     GBM_BACKEND = "nvidia-drm";
-    # Direct backend for the modern nvidia-vaapi-driver
+    # nvidia-vaapi-driver backend (direct is already the default)
     NVD_BACKEND = "direct";
-    # Enable G-Sync and Variable Refresh Rate (VRR) support for compatible monitors
+    # G-Sync/VRR for Xwayland OpenGL/Vulkan apps (games). Wayland-native
+    # VRR is controlled by the compositor (Hyprland misc.vrr), not these.
     __GL_GSYNC_ALLOWED = "1";
     __GL_VRR_ALLOWED = "1";
   };

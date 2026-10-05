@@ -78,12 +78,8 @@
                 (final: prev: {
                   helium = prev.callPackage ./pkgs/helium.nix { };
 
-                  desktopIcons = prev.callPackage ./pkgs/desktopIcons.nix {
-                    desktop-icons-src = inputs.desktop-icons;
-                  };
-
                   yaruCustom = prev.callPackage ./pkgs/yaruCustom.nix {
-                    desktop-icons = final.desktopIcons;
+                    desktop-icons-src = inputs.desktop-icons;
                   };
                 })
               ];

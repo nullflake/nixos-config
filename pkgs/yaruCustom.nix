@@ -1,6 +1,6 @@
 {
   stdenvNoCC,
-  desktop-icons,
+  desktop-icons-src,
   yaru-theme,
 }:
 
@@ -11,27 +11,16 @@ stdenvNoCC.mkDerivation {
   dontUnpack = true;
 
   installPhase = ''
-        mkdir -p $out/share/icons/Yaru-Custom/apps/scalable
+    runHook preInstall
 
-        cp ${desktop-icons}/icons/applications/proton-mail.svg \
-          $out/share/icons/Yaru-Custom/apps/scalable/proton-mail.svg
+    mkdir -p $out/share/icons/Yaru-Custom/apps/scalable
 
-        cp ${desktop-icons}/icons/applications/proton-pass.svg \
-          $out/share/icons/Yaru-Custom/apps/scalable/proton-pass.svg
+    for icon in proton-mail proton-pass protontricks protonvpn veracrypt vesktop; do
+      cp ${desktop-icons-src}/icons/applications/$icon.svg \
+        $out/share/icons/Yaru-Custom/apps/scalable/
+    done
 
-        cp ${desktop-icons}/icons/applications/protontricks.svg \
-          $out/share/icons/Yaru-Custom/apps/scalable/protontricks.svg
-
-        cp ${desktop-icons}/icons/applications/protonvpn.svg \
-          $out/share/icons/Yaru-Custom/apps/scalable/protonvpn.svg
-
-        cp ${desktop-icons}/icons/applications/veracrypt.svg \
-          $out/share/icons/Yaru-Custom/apps/scalable/veracrypt.svg
-
-        cp ${desktop-icons}/icons/applications/vesktop.svg \
-          $out/share/icons/Yaru-Custom/apps/scalable/vesktop.svg
-
-        cat > $out/share/icons/Yaru-Custom/index.theme <<EOF
+    cat > $out/share/icons/Yaru-Custom/index.theme <<EOF
     [Icon Theme]
     Name=Yaru-Custom
     Comment=Yaru with custom application icons
@@ -45,6 +34,8 @@ stdenvNoCC.mkDerivation {
     Type=Scalable
     Context=Applications
     EOF
+
+    runHook postInstall
   '';
 
   propagatedBuildInputs = [ yaru-theme ];

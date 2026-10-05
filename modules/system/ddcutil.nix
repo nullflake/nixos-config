@@ -1,11 +1,8 @@
 { username, ... }:
 {
-  boot.kernelModules = [ "i2c-dev" ];
+  # Loads i2c-dev, creates the "i2c" group and installs the udev rule
+  hardware.i2c.enable = true;
 
-  users.groups.i2c = { };
+  # Keeps access working outside a local seat (e.g. SSH)
   users.users."${username}".extraGroups = [ "i2c" ];
-
-  services.udev.extraRules = ''
-    KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"
-  '';
 }

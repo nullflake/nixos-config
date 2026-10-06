@@ -12,12 +12,14 @@ hypr() {
       fi
       ;;
     copy)
-      find -L "$hypr_dir" -type f \( -name '*.lua' \) | sort | while read -r f; do
-        local display_name="~/.config/hypr${f#$hypr_dir}"
-        echo "### $display_name"
-        cat "$f"
-        echo
-      done | wl-copy
+      find -L "$hypr_dir" -type f -name '*.lua' -print0 |
+        sort -z |
+        while IFS= read -r -d '' f; do
+          local display_name="~/.config/hypr${f#"$hypr_dir"}"
+          echo "### $display_name"
+          cat "$f"
+          echo
+        done | wl-copy
       ;;
     reload)
       hyprctl reload

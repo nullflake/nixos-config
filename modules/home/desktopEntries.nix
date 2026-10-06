@@ -23,7 +23,12 @@
       };
     };
 
-    Emulator = {
+    /*
+      Not a launcher: exists only so the Android emulator window
+      (StartupWMClass = Emulator) gets the android-studio icon. Hidden
+      from menus because `emulator` is not on PATH.
+    */
+    emulator = {
       name = "Android Emulator";
       exec = "emulator";
       icon = "android-studio";

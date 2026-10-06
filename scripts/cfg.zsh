@@ -3,49 +3,45 @@ cfg() {
 
   case "$1" in
     copy)
+      # Concatenates every non-hidden file of the config repo into one text
+      # file. Each file is preceded by a "### <path>" header (omitted in raw
+      # mode) and binary/image files are replaced by a placeholder line.
+      # The result is copied to the clipboard as a file URI, or as plain
+      # text in raw mode.
       local output_file="/tmp/nixos-config.txt"
+      local raw=0
 
-      if [[ "$2" == "raw" ]]; then
-        # Raw: copies file contents without adding display-name headers.
-        find -L "$cfg_dir" -type f \
-          -not -path '*/.*' \
-          -print0 |
-          sort -z |
-          while IFS= read -r -d '' f; do
-            case "$f" in
-              *.webp|*.png|*.jpg|*.jpeg|*.ico|*.svg)
-                echo "[binary/image file, content omitted]"
-                ;;
-              *)
-                cat "$f"
-                ;;
-            esac
-            echo
-          done > "$output_file"
-      else
-        # AI-friendly: adds file paths as headers for easier context.
-        find -L "$cfg_dir" -type f \
-          -not -path '*/.*' \
-          -print0 |
-          sort -z |
-          while IFS= read -r -d '' f; do
-            local display_name="~/nixos${f#$cfg_dir}"
-            echo "### $display_name"
+      case "$2" in
+        "") ;;
+        raw) raw=1 ;;
+        *)
+          echo "Usage: cfg copy [raw]" >&2
+          return 1
+          ;;
+      esac
 
-            case "$f" in
-              *.webp|*.png|*.jpg|*.jpeg|*.ico|*.svg)
-                echo "[binary/image file, content omitted]"
-                ;;
-              *)
-                cat "$f"
-                ;;
-            esac
+      find -L "$cfg_dir" -type f \
+        -not -path '*/.*' \
+        -print0 |
+        sort -z |
+        while IFS= read -r -d '' f; do
+          if (( ! raw )); then
+            echo "### ~/nixos${f#"$cfg_dir"}"
+          fi
 
-            echo
-          done > "$output_file"
-      fi
+          case "$f" in
+            *.webp|*.png|*.jpg|*.jpeg|*.ico|*.svg)
+              echo "[binary/image file, content omitted]"
+              ;;
+            *)
+              cat "$f"
+              ;;
+          esac
 
-      if [[ "$2" == "raw" ]]; then
+          echo
+        done > "$output_file"
+
+      if (( raw )); then
         wl-copy -t text/plain < "$output_file"
         echo "Copied to clipboard as text: $output_file"
       else
@@ -120,23 +116,26 @@ cfg() {
       upstream=$(git -C "$cfg_dir" \
         rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)
 
-      # Check whether there are staged changes compared to HEAD.
-      if git -C "$cfg_dir" diff-index --quiet HEAD --; then
+      if ! git -C "$cfg_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+
+        # Unborn branch: the first commit has to be created.
+        if git -C "$cfg_dir" diff --cached --quiet; then
+          echo "No commits yet and nothing to commit. Push skipped."
+          return 0
+        fi
+
+        if ! git -C "$cfg_dir" commit; then
+          echo "Error: Failed to create commit." >&2
+          return 1
+        fi
+
+      elif git -C "$cfg_dir" diff-index --quiet HEAD --; then
 
         # No working-tree changes.
         if [[ -z "$upstream" ]]; then
-
-          # No upstream and no commit yet.
-          if ! git -C "$cfg_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
-            echo "No commits yet. Push skipped."
-            return 0
-          fi
-
           echo "No upstream configured. Pushing and setting upstream..."
-
         else
-
-          # No working-tree changes, but check for unpushed commits.
+          # Check for unpushed commits.
           if ! git -C "$cfg_dir" rev-list --count "$upstream"..HEAD |
             grep -q '[1-9]'; then
             echo "No changes detected. Push skipped."
@@ -185,7 +184,27 @@ cfg() {
         return 1
       fi
 
-      echo "This will hard reset to '$2' and FORCE PUSH to origin/main, rewriting remote history."
+      local target branch
+      target=$(git -C "$cfg_dir" rev-parse --verify --quiet "$2^{commit}") || {
+        echo "Error: Invalid commit." >&2
+        return 1
+      }
+
+      branch=$(git -C "$cfg_dir" symbolic-ref --quiet --short HEAD) || {
+        echo "Error: HEAD is detached. Check out a branch first." >&2
+        return 1
+      }
+
+      if [[ -n "$(git -C "$cfg_dir" status --porcelain)" ]]; then
+        echo "Error: uncommitted changes would be lost. Commit them or run 'cfg discard' first." >&2
+        return 1
+      fi
+
+      echo "Commits that will be dropped from '$branch':"
+      git -C "$cfg_dir" log --oneline "$target"..HEAD
+
+      echo
+      echo "This will hard reset to '$2' and FORCE PUSH to origin/$branch, rewriting remote history."
       printf "Type the commit hash again to confirm: "
       read -r confirm_hash
 
@@ -194,16 +213,16 @@ cfg() {
         return 1
       fi
 
-      # Reset local history.
-      if ! git -C "$cfg_dir" reset --hard "$2"; then
-        echo "Error: Invalid commit." >&2
+      # Push first, so a failed push leaves the local branch untouched.
+      # --force-with-lease refuses to overwrite remote commits we have not seen.
+      if ! git -C "$cfg_dir" push --force-with-lease origin "$target:refs/heads/$branch"; then
+        echo "Error: Remote history was not rewritten; local branch is unchanged." >&2
+        echo "The remote may have changed since your last fetch." >&2
         return 1
       fi
 
-      # Rewrite remote history only if the remote has not changed.
-      if ! git -C "$cfg_dir" push origin main --force-with-lease; then
-        echo "Error: Remote history was not rewritten." >&2
-        echo "The remote may have changed since your last fetch." >&2
+      if ! git -C "$cfg_dir" reset --hard "$target"; then
+        echo "Error: Remote was rewritten but local reset failed." >&2
         return 1
       fi
       ;;
@@ -231,18 +250,18 @@ cfg() {
       echo "Usage: cfg <command> [arguments]"
       echo
       echo "Commands:"
-      echo "  copy"
-      echo "  copy raw"
+      echo "  copy [raw]"
       echo "  discard"
       echo "  diff"
       echo "  edit"
       echo "  fmt"
       echo "  log"
-      echo "  push \"msg\""
+      echo "  push"
       echo "  rewind <commit>"
       echo "  status"
       echo "  track"
       echo "  tree"
+      return 1
       ;;
   esac
 }
@@ -265,7 +284,11 @@ _cfg_completion() {
     tree
   )
 
-  compadd -- $subcommands
+  if (( CURRENT == 2 )); then
+    compadd -- $subcommands
+  elif (( CURRENT == 3 )) && [[ "$words[2]" == "copy" ]]; then
+    compadd -- raw
+  fi
 }
 
 compdef _cfg_completion cfg

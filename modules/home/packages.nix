@@ -1,69 +1,89 @@
 { pkgs, inputs, ... }:
 {
   home.packages = with pkgs; [
-    # GUI
-    android-studio
+    # Browsers
     brave
-    ente-auth
-    gnome-calculator
     helium
-    heroic
-    hyprpicker
-    libreoffice
-    nautilus
-    obsidian
-    papers
-    proton-pass
-    satty
-    spotify
-    stremio-linux-shell
     tor-browser
-    veracrypt
+
+    # Communication
+    protonmail-desktop
     vesktop
 
-    # CLI
-    android-tools
-    bat
-    btop
+    # Security & privacy
+    ente-auth
+    proton-pass
+    veracrypt
+
+    # Media & games
     cava
+    heroic
+    spotify
+    stremio-linux-shell
+
+    # Productivity
+    gnome-calculator
+    libreoffice
+    obsidian
+    papers
+
+    # Development
+    android-studio
+    android-tools
     claude-code
-    ddcutil
-    dnsutils
-    ente-cli
-    evtest
-    file
-    fzf
     git
-    glib
+    python3
+    scrcpy
+
+    # Files & storage
+    ente-cli
+    file
+    nautilus
+    rclone
+    trash-cli
+
+    # Text & search
+    bat
+    fzf
     jq
     micro
-    nvd
-    ookla-speedtest
-    protonmail-desktop
-    proton-vpn-cli
-    python3
-    rclone
     ripgrep
-    scrcpy
     (tesseract.override {
       enableLanguages = [
         "tur"
         "eng"
       ];
     })
-    trash-cli
-    trippy
-    wl-clipboard
 
-    # Desktop
-    adwaita-icon-theme
-    bibata-cursors
+    # System & hardware
+    btop
+    ddcutil
+    evtest
+    glib
+    nvd
+
+    # Network
+    dnsutils
+    ookla-speedtest
+    proton-vpn-cli
+    trippy
+
+    # Screen capture
     gpu-screen-recorder
     grim
+    hyprpicker
     hyprshot
+    satty
+    slurp
+
+    # Desktop integration
     inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
     libnotify
-    slurp
+    wl-clipboard
+
+    # Theming
+    adwaita-icon-theme
+    bibata-cursors
     yaru-theme
   ];
 }

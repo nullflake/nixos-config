@@ -1,5 +1,4 @@
 nixctl() {
-  local host="$(hostname)"
 
   case "$1" in
     boot)

@@ -74,6 +74,16 @@
 
           modules = host.modules ++ [
             {
+              /*
+                 The directory name under ./hosts is the single source of
+                 truth for the hostname. nh and nixos-rebuild pick the
+                 configuration by hostname, so it must match the
+                 nixosConfigurations key.
+              */
+              networking.hostName = name;
+            }
+
+            {
               nixpkgs.overlays = [
                 (final: prev: {
                   helium = prev.callPackage ./pkgs/helium.nix { };

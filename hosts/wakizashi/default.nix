@@ -34,7 +34,6 @@ in
   ];
 
   configuration = {
-    networking.hostName = "wakizashi";
 
     custom = {
       greeter.backend = "noctalia";

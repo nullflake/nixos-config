@@ -28,7 +28,7 @@ in
       # Prevent paste errors with '#' comments
       setopt INTERACTIVE_COMMENTS
 
-      # Automatically loaded modules from dotfiles/zsh/
+      # Automatically loaded modules from /scripts
       ${combinedZsh}
     '';
   };

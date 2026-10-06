@@ -75,5 +75,23 @@
         "Security"
       ];
     };
+
+    whatsapp = {
+      name = "WhatsApp";
+      genericName = "Messaging Client";
+      comment = "WhatsApp Web Client";
+      exec = "helium --app=https://web.whatsapp.com";
+      icon = "whatsapp";
+      terminal = false;
+      type = "Application";
+      categories = [
+        "Network"
+        "InstantMessaging"
+        "Chat"
+      ];
+      settings = {
+        StartupWMClass = "chrome-web.whatsapp.com__-Default";
+      };
+    };
   };
 }

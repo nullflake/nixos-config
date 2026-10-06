@@ -15,7 +15,7 @@ stdenvNoCC.mkDerivation {
 
     mkdir -p $out/share/icons/Yaru-Custom/apps/scalable
 
-    for icon in proton-mail proton-pass protontricks protonvpn veracrypt vesktop; do
+    for icon in proton-mail proton-pass protontricks protonvpn veracrypt vesktop whatsapp; do
       cp ${desktop-icons-src}/icons/applications/$icon.svg \
         $out/share/icons/Yaru-Custom/apps/scalable/
     done

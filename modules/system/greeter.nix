@@ -26,22 +26,6 @@
     mkIf/mkMerge are lazy, so reading config.custom inside them is safe.
   */
   config = lib.mkMerge [
-    {
-      /*
-        Let the noctalia shell sync its appearance (wallpaper, colors,
-        theme) to the greeter without prompting for a pkexec password
-        every time.
-      */
-      security.polkit.extraConfig = ''
-        polkit.addRule(function(action, subject) {
-          if (action.id == "org.noctalia.greeter.sync-appearance" &&
-              subject.user == "${username}") {
-            return polkit.Result.YES;
-          }
-        });
-      '';
-    }
-
     (lib.mkIf (config.custom.greeter.backend == "tuigreet") {
       /*
         tuigreet has no session picker: it always runs a single fixed
@@ -83,6 +67,13 @@
       */
       services.displayManager.noctalia-greeter = {
         enable = true;
+
+        /*
+          Lets the noctalia shell sync wallpaper/colors/theme to the
+          greeter without a pkexec password prompt.
+        */
+        passwordless-sync-users = [ username ];
+
         settings = {
           cursor = {
             theme = "Bibata-Modern-Classic";

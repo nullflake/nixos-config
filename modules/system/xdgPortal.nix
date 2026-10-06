@@ -1,31 +1,18 @@
-{
-  config,
-  pkgs,
-  lib,
-  ...
-}:
+{ pkgs, ... }:
 {
   xdg.portal = {
     enable = true;
     xdgOpenUsePortal = true; # Forces apps to use portals instead of standalone scripts
 
-    extraPortals = [
-      pkgs.xdg-desktop-portal-gtk
-    ]
-    ++ lib.optional (builtins.elem "hyprland" config.custom.windowManager) pkgs.xdg-desktop-portal-hyprland;
     /*
-      umbriel provides its own xdg-desktop-portal-umbriel automatically,
-      no need to add it here
+      programs.hyprland and programs.umbriel register their own portal
+      backends and ship their own <desktop>-portals.conf, which
+      xdg-desktop-portal prefers over portals.conf. Only the shared gtk
+      backend is listed here.
     */
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
 
-    config.common = {
-      default =
-        (lib.optional (builtins.elem "hyprland" config.custom.windowManager) "hyprland")
-        ++ (lib.optional (builtins.elem "umbriel" config.custom.windowManager) "umbriel")
-        ++ [ "gtk" ];
-      "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
-      "org.freedesktop.impl.portal.AppChooser" = [ "gtk" ];
-      "org.freedesktop.impl.portal.Settings" = [ "gtk" ];
-    };
+    # Fallback for sessions with an unrecognized XDG_CURRENT_DESKTOP
+    config.common.default = [ "gtk" ];
   };
 }

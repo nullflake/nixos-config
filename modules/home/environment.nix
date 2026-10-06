@@ -1,4 +1,4 @@
-{ flakeRoot, ... }:
+{ flakeDir, ... }:
 {
   home.sessionVariables = {
     EDITOR = "micro";
@@ -6,10 +6,10 @@
     MICRO_TRUECOLOR = "1";
     /*
       scripts/cfg.zsh and nixctl.zsh run `git -C "$FLAKE" ...` against
-      this path; the store copy has no .git, so it must be flakeRoot.
+      this path, so it must be the real checkout, not the store copy.
     */
-    FLAKE = flakeRoot;
-    NH_FLAKE = flakeRoot;
+    FLAKE = flakeDir;
+    NH_FLAKE = flakeDir;
   };
 
   home.shellAliases = {

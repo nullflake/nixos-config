@@ -50,17 +50,12 @@
           host = import ./hosts/${name};
 
           /*
-            flakeDir (toString ./.) points into the read-only Nix store
-            copy of this flake, with no .git — flake evaluation is
-            sandboxed, so ./. always resolves there. Right for values
-            baked into the built config.
-
-            flakeRoot is the real on-disk checkout at ~/nixos. Tools
-            that run git (cfg diff/log/push) or write flake.lock
-            (nixctl update, nh) need the actual git directory, so they
-            must use flakeRoot instead.
+            The real on-disk checkout at ~/nixos. Flake evaluation is
+            sandboxed, so ./. would resolve to the read-only store copy
+            with no .git. Tools that run git (cfg diff/log/push) or write
+            flake.lock (nixctl update, nh) need this path instead.
           */
-          flakeRoot = "/home/${host.username}/nixos";
+          flakeDir = "/home/${host.username}/nixos";
         in
         lib.nixosSystem {
           inherit (host) system;
@@ -68,17 +63,16 @@
           specialArgs = {
             inherit inputs;
             username = host.username;
-            flakeDir = toString ./.;
-            inherit flakeRoot;
+            inherit flakeDir;
           };
 
           modules = host.modules ++ [
             {
               /*
-                 The directory name under ./hosts is the single source of
-                 truth for the hostname. nh and nixos-rebuild pick the
-                 configuration by hostname, so it must match the
-                 nixosConfigurations key.
+                The directory name under ./hosts is the single source of
+                truth for the hostname. nh and nixos-rebuild pick the
+                configuration by hostname, so it must match the
+                nixosConfigurations key.
               */
               networking.hostName = name;
             }
@@ -105,8 +99,7 @@
               home-manager.extraSpecialArgs = {
                 inherit inputs;
                 username = host.username;
-                flakeDir = toString ./.;
-                inherit flakeRoot;
+                inherit flakeDir;
               };
             }
 

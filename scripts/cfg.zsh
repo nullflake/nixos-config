@@ -215,7 +215,7 @@ cfg() {
 
       # Push first, so a failed push leaves the local branch untouched.
       # --force-with-lease refuses to overwrite remote commits we have not seen.
-      if ! git -C "$cfg_dir" push --force-with-lease origin "$target:refs/heads/$branch"; then
+      if ! git -C "$cfg_dir" push --force-with-lease origin "${target}:refs/heads/${branch}"; then
         echo "Error: Remote history was not rewritten; local branch is unchanged." >&2
         echo "The remote may have changed since your last fetch." >&2
         return 1

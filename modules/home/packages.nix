@@ -73,7 +73,6 @@
     grim
     hyprpicker
     hyprshot
-    satty
     slurp
 
     # Desktop integration

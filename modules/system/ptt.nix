@@ -155,12 +155,22 @@ let
 
       watchdog_pid=$!
 
+      # Runs on every exit path. Must never block: during shutdown
+      # PipeWire/WirePlumber may already be gone, so no flock, no
+      # retry loop, and a hard 1 second cap on wpctl. ExecStopPost
+      # additionally guarantees the muted state.
       cleanup() {
+        trap - EXIT INT TERM
         kill "$watchdog_pid" 2>/dev/null || true
-        sync_state 0
+        timeout 1 wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 \
+          >/dev/null 2>&1 || true
       }
 
-      trap cleanup EXIT INT TERM
+      # A signal must actually terminate the script (the EXIT trap
+      # then runs cleanup). Previously the trap ran cleanup but the
+      # script kept looping until systemd timed out and SIGKILLed it.
+      trap 'exit 0' INT TERM
+      trap cleanup EXIT
 
       while true; do
         if [ -e "$device" ]; then
@@ -190,7 +200,10 @@ let
           sync_state 0
         fi
 
-        sleep 2
+        # Interruptible sleep: bash runs traps immediately during
+        # the builtin wait, but not while a foreground sleep runs.
+        sleep 2 &
+        wait $! || true
       done
     '';
   };
@@ -250,8 +263,14 @@ in
       serviceConfig = {
         ExecStart = lib.getExe pttScript;
 
-        # Fail closed when systemd stops the service for any reason.
-        ExecStopPost = "-${wpctl} set-mute @DEFAULT_AUDIO_SOURCE@ 1";
+        /*
+          Fail closed when systemd stops the service for any reason.
+          Capped with timeout so a dead PipeWire can't stall shutdown.
+        */
+        ExecStopPost = "-${pkgs.coreutils}/bin/timeout 1 ${wpctl} set-mute @DEFAULT_AUDIO_SOURCE@ 1";
+
+        # Hard upper bound for stopping: after this, SIGKILL.
+        TimeoutStopSec = "3s";
 
         Restart = "on-failure";
         RestartSec = "2s";

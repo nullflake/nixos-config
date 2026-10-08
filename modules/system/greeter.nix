@@ -80,7 +80,20 @@
             size = 24;
             path = "${pkgs.bibata-cursors}/share/icons";
           };
-          keyboard.layout = "tr";
+
+          /*
+            Single source of truth is locale.nix (services.xserver.xkb),
+            so the login screen can't drift from the system layout.
+            An empty variant is omitted instead of written as "".
+          */
+          keyboard =
+            let
+              xkb = config.services.xserver.xkb;
+            in
+            {
+              inherit (xkb) layout;
+            }
+            // lib.optionalAttrs (xkb.variant != "") { inherit (xkb) variant; };
         };
       };
     })

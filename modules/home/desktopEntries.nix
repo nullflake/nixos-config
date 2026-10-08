@@ -1,41 +1,45 @@
 {
   xdg.desktopEntries = {
+    "dev.noctalia.Noctalia" = {
+      name = "Noctalia";
+      exec = "noctalia --daemon";
+      icon = "noctalia";
+      noDisplay = true;
+    };
+
+    # Not a launcher: gives the Android emulator window the android-studio icon.
+    emulator = {
+      name = "Android Emulator";
+      exec = "emulator";
+      icon = "android-studio";
+      noDisplay = true;
+      settings.StartupWMClass = "Emulator";
+    };
+
     micro = {
-      name = "Micro Text Editor";
+      name = "Micro";
       genericName = "Text Editor";
-      comment = "Modern and intuitive terminal-based text editor";
-      exec = "kitty --class micro -e micro %U";
-      terminal = false;
+      comment = "Edit text files in a terminal";
+      exec = "kitty --class micro -e micro %F";
       icon = "micro";
-      type = "Application";
       categories = [
         "Utility"
         "TextEditor"
         "Development"
       ];
-      mimeType = [
-        "text/plain"
-        "application/x-zerosize"
-        "inode/x-empty"
-      ];
-      settings = {
-        StartupWMClass = "micro";
-      };
+      startupNotify = false;
+      settings.StartupWMClass = "micro";
     };
 
-    /*
-      Not a launcher: exists only so the Android emulator window
-      (StartupWMClass = Emulator) gets the android-studio icon. Hidden
-      from menus because `emulator` is not on PATH.
-    */
-    emulator = {
-      name = "Android Emulator";
-      exec = "emulator";
-      icon = "android-studio";
-      type = "Application";
-      settings = {
-        StartupWMClass = "Emulator";
-      };
+    protontricks = {
+      name = "Protontricks";
+      exec = "protontricks";
+      icon = "protontricks";
+      noDisplay = true;
+      categories = [
+        "Utility"
+        "Game"
+      ];
     };
 
     steam = {
@@ -44,8 +48,6 @@
       comment = "Application for managing and playing games on Steam";
       exec = "steam -gamepadui -windowed";
       icon = "steam";
-      terminal = false;
-      type = "Application";
       categories = [
         "Network"
         "FileTransfer"
@@ -57,24 +59,10 @@
       ];
     };
 
-    protontricks = {
-      name = "Protontricks";
-      exec = "protontricks";
-      icon = "protontricks";
-      terminal = false;
-      type = "Application";
-      categories = [
-        "Utility"
-        "Game"
-      ];
-    };
-
     veracrypt = {
       name = "VeraCrypt";
       exec = "veracrypt %U";
       icon = "veracrypt";
-      terminal = false;
-      type = "Application";
       categories = [
         "Utility"
         "Security"
@@ -87,16 +75,12 @@
       comment = "WhatsApp Web Client";
       exec = "helium --app=https://web.whatsapp.com";
       icon = "whatsapp";
-      terminal = false;
-      type = "Application";
       categories = [
         "Network"
         "InstantMessaging"
         "Chat"
       ];
-      settings = {
-        StartupWMClass = "chrome-web.whatsapp.com__-Default";
-      };
+      settings.StartupWMClass = "chrome-web.whatsapp.com__-Default";
     };
   };
 }

@@ -39,7 +39,6 @@
     ente-cli
     file
     nautilus
-    rclone
     trash-cli
 
     # Text & search

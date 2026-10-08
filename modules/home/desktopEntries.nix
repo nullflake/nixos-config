@@ -42,7 +42,7 @@
       name = "Steam";
       genericName = "PC Gaming Platform";
       comment = "Application for managing and playing games on Steam";
-      exec = "steam -tenfoot %U";
+      exec = "steam -gamepadui -windowed";
       icon = "steam";
       terminal = false;
       type = "Application";

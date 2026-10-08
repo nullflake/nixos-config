@@ -33,7 +33,6 @@
     claude-code
     git
     python3
-    scrcpy
 
     # Files & storage
     ente-cli

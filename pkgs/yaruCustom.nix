@@ -24,7 +24,7 @@ stdenvNoCC.mkDerivation {
     [Icon Theme]
     Name=Yaru-Custom
     Comment=Yaru with custom application icons
-    Inherits=Yaru-purple,Adwaita,hicolor
+    Inherits=Yaru-red,Adwaita,hicolor
     Directories=apps/scalable
 
     [apps/scalable]

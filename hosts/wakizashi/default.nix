@@ -15,6 +15,7 @@ in
     ../../modules/system/diskServices.nix
     ../../modules/system/fonts.nix
     ../../modules/system/greeter.nix
+    ../../modules/system/homeAssistant.nix
     ../../modules/system/locale.nix
     ../../modules/system/memory.nix
     ../../modules/system/network.nix

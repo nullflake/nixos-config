@@ -16,6 +16,19 @@
       settings.StartupWMClass = "Emulator";
     };
 
+    homeassistant = {
+      name = "Home Assistant";
+      genericName = "Home Automation";
+      comment = "Open source home automation platform";
+      exec = "helium --app=http://homeassistant.local:8123";
+      icon = "home-assistant";
+      categories = [
+        "Utility"
+        "Network"
+      ];
+      settings.StartupWMClass = "chrome-homeassistant.local__-Default";
+    };
+
     micro = {
       name = "Micro";
       genericName = "Text Editor";

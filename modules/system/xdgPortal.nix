@@ -2,17 +2,37 @@
 {
   xdg.portal = {
     enable = true;
-    xdgOpenUsePortal = true; # Forces apps to use portals instead of standalone scripts
+    xdgOpenUsePortal = true; # Force apps to use XDG portals instead of standalone xdg-open scripts
 
-    /*
-      programs.hyprland and programs.umbriel register their own portal
-      backends and ship their own <desktop>-portals.conf, which
-      xdg-desktop-portal prefers over portals.conf. Only the shared gtk
-      backend is listed here.
-    */
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    extraPortals = [
+      pkgs.xdg-desktop-portal-gtk # Shared fallback backend for portals not handled elsewhere
+      pkgs.xdg-desktop-portal-gnome # Provides the GNOME GTK4 file chooser
+    ];
 
-    # Fallback for sessions with an unrecognized XDG_CURRENT_DESKTOP
-    config.common.default = [ "gtk" ];
+    config = {
+      /*
+        Fallback for sessions with an unrecognized XDG_CURRENT_DESKTOP.
+      */
+      common = {
+        default = [ "gtk" ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
+      };
+
+      /*
+        Umbriel and Hyprland ship their own <desktop>-portals.conf files,
+        which take precedence over the generic portals.conf. Override the
+        file chooser in both so the GNOME picker is used while keeping the
+        compositor portal first for its own interfaces.
+      */
+      umbriel = {
+        default = [ "umbriel" "gtk" ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
+      };
+
+      hyprland = {
+        default = [ "hyprland" "gtk" ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
+      };
+    };
   };
 }

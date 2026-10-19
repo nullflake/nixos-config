@@ -10,9 +10,7 @@
     ];
 
     config = {
-      /*
-        Fallback for sessions with an unrecognized XDG_CURRENT_DESKTOP.
-      */
+      # Fallback for sessions with an unrecognized XDG_CURRENT_DESKTOP.
       common = {
         default = [ "gtk" ];
         "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
@@ -25,12 +23,18 @@
         compositor portal first for its own interfaces.
       */
       umbriel = {
-        default = [ "umbriel" "gtk" ];
+        default = [
+          "umbriel"
+          "gtk"
+        ];
         "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
       };
 
       hyprland = {
-        default = [ "hyprland" "gtk" ];
+        default = [
+          "hyprland"
+          "gtk"
+        ];
         "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
       };
     };

@@ -1,0 +1,11 @@
+[general]
+autostart = [
+    "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=Umbriel QT_QPA_PLATFORMTHEME QT_STYLE_OVERRIDE XDG_SESSION_TYPE=wayland",
+    "systemctl --user start nixos-fake-graphical-session.target",
+    "gnome-keyring-daemon --start --components=secrets",
+    "systemctl --user restart pipewire wireplumber",
+    "gvfsd",
+    "gvfsd-fuse $XDG_RUNTIME_DIR/gvfs",
+    "udiskie",
+    "noctalia"
+]

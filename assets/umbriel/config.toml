@@ -1,0 +1,19 @@
+[include]
+files = [
+    "animations.toml",
+    "appearance.toml",
+    "autostart.toml",
+    "general.toml",
+    "input.toml",
+    "keybindings.toml",
+    "layout.toml",
+    "rules.toml",
+    "workspaces.toml",
+    ]
+
+[include.optional]
+files = ["noctalia.toml"]
+
+[output.DP-1]
+min_workspaces = 8
+mode = "2560x1440@170.004"

@@ -1,0 +1,25 @@
+[general]
+xwayland = true
+show_cheatsheet = true
+focus_on_activate = false
+honor_restored_maximize = false
+
+[environment]
+XCURSOR_SIZE = "24"
+HYPRCURSOR_SIZE = "24"
+XCURSOR_THEME = "Bibata-Modern-Classic"
+
+[hot_corners.top_left]
+enabled = true
+delay_ms = 100
+action = "overview-open"
+
+[hot_corners.top_right]
+enabled = true
+delay_ms = 200
+action = "workspace-previous"
+
+[hot_corners.bottom_right]
+enabled = true
+delay_ms = 200
+action = "workspace-next"

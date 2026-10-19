@@ -1,0 +1,13 @@
+[layout]
+mode = "scrolling"
+gap = 4
+extent_presets = [0.333, 0.50, 0.667]
+
+[layout.struts]
+left = 8
+right = 8
+top = 8
+bottom = 8
+
+[layout.dwindle]
+preserve_split = true

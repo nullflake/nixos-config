@@ -1,0 +1,120 @@
+# GNOME Calculator - float
+[[window_rule]]
+match.app_id = "^org.gnome.Calculator$"
+default_floating = true
+
+# Helium Sign in - float
+[[window_rule]]
+match.app_id = "^helium$"
+match.title = "^Sign in.*"
+default_floating = true
+default_floating_size_px = { width = 1280, height = 720 }
+default_position = { x = 0, y = 0 }
+
+# Helium - WS 1
+[[window_rule]]
+match.app_id = "^helium$"
+default_workspace = 1
+default_maximize = true
+
+# Kitty - WS 2
+[[window_rule]]
+match.app_id = "^kitty$"
+default_workspace = 2
+
+# LibreOffice Open - float
+[[window_rule]]
+match.app_id = "^soffice$"
+match.title = "^(Open)$"
+default_floating = true
+default_floating_size_px = { width = 1280, height = 720 }
+
+# mpv - float
+[[window_rule]]
+match.app_id = "^(mpv)$"
+default_floating = true
+default_floating_size_px = { width = 1920, height = 1080 }
+
+# Nautilus - float
+[[window_rule]]
+match.app_id = "^org.gnome.Nautilus$"
+default_floating = true
+default_floating_size_px = { width = 1280, height = 720 }
+
+# Noctalia - float
+[[window_rule]]
+match.app_id = "^dev.noctalia.Noctalia$"
+default_floating = true
+default_floating_size_px = { width = 1280, height = 720 }
+
+# Obsidian Settings - float
+[[window_rule]]
+match.app_id = "^md.obsidian.Obsidian$"
+match.title = "^(Settings.*)$"
+default_floating = true
+
+# Obsidian - WS 3
+[[window_rule]]
+match.app_id = "^md.obsidian.Obsidian$"
+default_workspace = 3
+
+# Proton Mail - WS 3
+[[window_rule]]
+match.app_id = "^proton-mail$"
+default_workspace = 3
+
+# Scrcpy - float
+[[window_rule]]
+match.app_id = "^.*scrcpy.*$"
+default_floating = true
+default_floating_size_px = { width = 540, height = 1170 }
+
+# Screen sharing picker - float
+[[window_rule]]
+match.app_id = "^dev\\.noctalia\\.UmbrielSharePicker$"
+default_floating = true
+default_floating_size_px = { width = 640, height = 500 }
+
+# Spotify - WS 4
+[[window_rule]]
+match.app_id = "^spotify$"
+default_workspace = 4
+default_maximize = true
+
+# Steam - WS 5
+[[window_rule]]
+match.app_id = "^steam$"
+default_workspace = 5
+default_maximize = true
+
+# Stremio - WS 5
+[[window_rule]]
+match.app_id = "^com.stremio.Stremio$"
+default_workspace = 5
+
+# swayimg - float
+[[window_rule]]
+match.app_id = "^(swayimg)$"
+default_floating = true
+default_floating_size_px = { width = 1920, height = 1080 }
+
+# Vesktop - WS 6
+[[window_rule]]
+match.app_id = "^vesktop$"
+default_workspace = 6
+
+# XDG Desktop Portal GTK - float
+[[window_rule]]
+match.app_id = "^xdg-desktop-portal-gtk$"
+default_floating = true
+default_floating_size_px = { width = 1280, height = 720 }
+
+# Zed - WS 2
+[[window_rule]]
+match.app_id = "^dev.zed.Zed$"
+default_workspace = 2
+
+# General - all
+[[window_rule]]
+match.app_id = "^.*$"
+default_scrolling_extent = 0.48

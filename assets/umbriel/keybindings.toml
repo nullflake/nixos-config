@@ -1,0 +1,93 @@
+[keybinds]
+
+# apps
+"Mod+T" = "spawn:kitty"
+"Mod+Y" = "spawn:kitty -e yazi"
+"Mod+F" = "spawn:nautilus"
+"Mod+B" = "spawn:helium"
+"Mod+Z" = "spawn:zeditor"
+
+# window
+"Mod+Q" = "window-close"
+"Mod+V" = "window-toggle-floating"
+"Mod+P" = "window-toggle-pinned"
+"Mod+M" = "window-toggle-maximize"
+"F11"   = "window-toggle-fullscreen"
+
+# focus & move
+"Mod+Left"  = "window-focus-left"
+"Mod+Right" = "window-focus-right"
+"Mod+Up"    = "window-focus-up"
+"Mod+Down"  = "window-focus-down"
+
+"Mod+Shift+Left"  = "column-move-left"
+"Mod+Shift+Right" = "column-move-right"
+"Mod+Shift+Up"    = "window-move-up"
+"Mod+Shift+Down"  = "window-move-down"
+
+# workspace
+"Mod" = "overview-toggle"
+
+"Mod+1" = "workspace-switch:1"
+"Mod+2" = "workspace-switch:2"
+"Mod+3" = "workspace-switch:3"
+"Mod+4" = "workspace-switch:4"
+"Mod+5" = "workspace-switch:5"
+"Mod+6" = "workspace-switch:6"
+"Mod+7" = "workspace-switch:7"
+"Mod+8" = "workspace-switch:8"
+"Mod+9" = "workspace-switch:9"
+"Mod+0" = "workspace-switch:10"
+
+"Mod+Shift+1" = "window-move-to-workspace:1"
+"Mod+Shift+2" = "window-move-to-workspace:2"
+"Mod+Shift+3" = "window-move-to-workspace:3"
+"Mod+Shift+4" = "window-move-to-workspace:4"
+"Mod+Shift+5" = "window-move-to-workspace:5"
+"Mod+Shift+6" = "window-move-to-workspace:6"
+"Mod+Shift+7" = "window-move-to-workspace:7"
+"Mod+Shift+8" = "window-move-to-workspace:8"
+"Mod+Shift+9" = "window-move-to-workspace:9"
+"Mod+Shift+0" = "window-move-to-workspace:10"
+
+"Mod+Tab"        = "workspace-next"
+"Mod+Shift+Tab"  = "workspace-previous"
+"Mod+WheelDown"  = "workspace-next"
+"Mod+WheelUp"    = "workspace-previous"
+
+# scratchpad
+"Mod+Quotedbl"       = "scratchpad-toggle"
+"Mod+Shift+Quotedbl" = "window-toggle-scratchpad"
+"Mod+Ctrl+Quotedbl"  = "window-restore-from-scratchpad"
+"Mod+Alt+Quotedbl"   = "scratchpad-focus-next"
+
+# shell
+"Mod+Space"  = "spawn:noctalia msg panel-toggle launcher"
+"Mod+Escape" = "spawn:noctalia msg settings-toggle"
+"Mod+N"      = "spawn:noctalia msg panel-toggle noctalia/notes:panel"
+"Alt+Tab"    = "spawn:noctalia msg window-switcher hold"
+"F10"        = "spawn:noctalia msg theme-mode-toggle"
+
+# capture
+"Mod+S"       = "spawn:noctalia msg screenshot-region"
+"Mod+R"       = "spawn:noctalia msg plugin noctalia/screen_recorder:service all toggle"
+"Mod+O"       = "spawn:sh -c 'grim -g \"$(slurp)\" - | tesseract stdin stdout -l tur+eng | wl-copy && notify-send \"OCR\" \"Copied to clipboard\"'"
+"Mod+C"       = "spawn:hyprpicker -a"
+"Mod+Shift+C" = "spawn:noctalia msg panel-toggle oldirtty/color_picker:panel"
+
+# session
+"Mod+L"      = "spawn:noctalia msg session lock"
+"Mod+Delete" = "session-quit"
+
+# media
+"XF86AudioRaiseVolume" = "spawn:wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"
+"XF86AudioLowerVolume" = "spawn:wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+"XF86AudioMute"        = "spawn:wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+"XF86AudioMicMute"     = "spawn:wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+
+"XF86MonBrightnessUp"   = "spawn:brightnessctl set 5%+"
+"XF86MonBrightnessDown" = "spawn:brightnessctl set 5%-"
+
+"XF86AudioPlay" = "spawn:playerctl play-pause"
+"XF86AudioNext" = "spawn:playerctl next"
+"XF86AudioPrev" = "spawn:playerctl previous"

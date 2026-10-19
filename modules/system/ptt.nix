@@ -7,7 +7,14 @@
 }:
 
 let
-  cfg = config.custom.ptt;
+  cfg = config.modules.ptt;
+
+  /*
+    Convert to string so that an unset (null) value does not cause a
+    type error during evaluation; the assertions below report it instead.
+  */
+  device = toString cfg.device;
+  button = toString cfg.button;
 
   wpctl = lib.getExe' pkgs.wireplumber "wpctl";
 
@@ -22,8 +29,8 @@ let
     ];
 
     text = ''
-      device=${lib.escapeShellArg cfg.device}
-      button=${toString cfg.button}
+      device=${lib.escapeShellArg device}
+      button=${button}
 
       state_file="$RUNTIME_DIRECTORY/held"
       applied_file="$RUNTIME_DIRECTORY/applied"
@@ -209,30 +216,45 @@ let
   };
 in
 {
-  options.custom.ptt = {
+  options.modules.ptt = {
     enable = lib.mkEnableOption "Push-to-Talk";
 
     device = lib.mkOption {
-      type = lib.types.strMatching "/dev/input/by-id/.+";
+      type = lib.types.nullOr (lib.types.strMatching "/dev/input/by-id/.+");
+      default = null;
 
       description = ''
         Stable /dev/input/by-id/... evdev device path used for PTT.
+        Required when `modules.ptt.enable` is true.
       '';
 
       example = "/dev/input/by-id/usb-Vendor_Mouse_SERIAL-event-mouse";
     };
 
     button = lib.mkOption {
-      type = lib.types.ints.between 0 767;
+      type = lib.types.nullOr (lib.types.ints.between 0 767);
+      default = null;
 
       description = ''
         Evdev EV_KEY code used for Push-to-Talk.
+        Required when `modules.ptt.enable` is true.
         Example: 276 = BTN_EXTRA.
       '';
     };
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.device != null;
+        message = "modules.ptt.device must be set when modules.ptt.enable is true.";
+      }
+      {
+        assertion = cfg.button != null;
+        message = "modules.ptt.button must be set when modules.ptt.enable is true.";
+      }
+    ];
+
     users.groups.ptt = { };
 
     users.users.${username}.extraGroups = [
@@ -242,7 +264,7 @@ in
     # Restrict access to the configured event device only.
     services.udev.extraRules = ''
       SUBSYSTEM=="input", KERNEL=="event*", \
-      SYMLINK=="${lib.removePrefix "/dev/" cfg.device}", \
+      SYMLINK=="${lib.removePrefix "/dev/" device}", \
       GROUP="ptt", MODE="0660"
     '';
 

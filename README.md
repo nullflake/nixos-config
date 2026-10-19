@@ -6,7 +6,7 @@
 
 - Single flake, hosts auto-discovered from `hosts/`; each host picks the modules it needs.
 - System configuration in `modules/system/`, user configuration (Home Manager) in `modules/home/`.
-- Typed `custom.*` options for choices that must be explicit per host (window managers, greeter, unfree policy, push-to-talk, ...).
+- Typed `custom.*` options for choices that must be explicit per host (window managers, greeter, unfree policy, ...).
 - Day-to-day operations wrapped in two shell functions: `nixctl` (system) and `cfg` (the configuration repository).
 - Hyprland, Umbriel and Noctalia user configuration is intentionally managed outside Nix (see [Externally managed configuration](#externally-managed-configuration)).
 
@@ -167,7 +167,7 @@ Options without a default must be set explicitly by every host that imports the 
 | `custom.greeter.backend` | `greeter.nix` | Login greeter: `noctalia` or `tuigreet`. |
 | `custom.user.shell` | `shell.nix` | Login shell: `zsh`, `bash` or `fish`. |
 | `custom.unfree.mode` | `unfree.nix` | `all`, `none`, or `selected` (with `custom.unfree.packages`). |
-| `custom.ptt.{enable,device,button}` | `ptt.nix` | Push-to-talk from an evdev button (see below). |
+| `modules.ptt.{enable,device,button}` | `ptt.nix` | Push-to-talk from an evdev button (see below). |
 | `custom.theme.icon.{name,package}` | `modules/home/theme.nix` | GTK icon theme (Home Manager side). |
 
 ## System design notes
@@ -182,7 +182,7 @@ Options without a default must be set explicitly by every host that imports the 
 
 ### Push-to-talk
 
-`custom.ptt` runs a hardened user service that reads one mouse button from `/dev/input/by-id/...` and unmutes the default audio source only while the button is held. It fails closed: the source is muted on startup, on device loss and on service stop. Changing the mute state manually from the sound settings is respected until the next button event. Access to the one input device is granted to the `ptt` group through a udev rule.
+`modules.ptt` runs a hardened user service that reads one mouse button from `/dev/input/by-id/...` and unmutes the default audio source only while the button is held. It fails closed: the source is muted on startup, on device loss and on service stop. Changing the mute state manually from the sound settings is respected until the next button event. Access to the one input device is granted to the `ptt` group through a udev rule.
 
 ### Memory and storage
 

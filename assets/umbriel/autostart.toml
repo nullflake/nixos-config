@@ -6,6 +6,5 @@ autostart = [
     "systemctl --user restart pipewire wireplumber",
     "gvfsd",
     "gvfsd-fuse $XDG_RUNTIME_DIR/gvfs",
-    "udiskie",
     "noctalia"
 ]

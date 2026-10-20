@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 {
   services.home-assistant = {
     enable = true;
@@ -20,7 +20,7 @@
       homeassistant = {
         name = "Home";
         unit_system = "metric";
-        time_zone = "Europe/Istanbul";
+        time_zone = config.time.timeZone;
       };
     };
   };

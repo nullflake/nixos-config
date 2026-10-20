@@ -32,6 +32,7 @@
     android-tools
     claude-code
     git
+    just
     python3
 
     # Files & storage

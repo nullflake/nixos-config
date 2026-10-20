@@ -1,138 +1,62 @@
 # NixOS Configuration
 
-**NixOS + Home Manager** flake configuration for a personal desktop, with per-host system/home modules, custom packages, application assets, and Zsh shell functions.
+**NixOS + Home Manager** flake for a personal desktop: per-host system and home modules, custom packages, application assets, and Zsh shell functions.
+
+> **Not sure which command to run? Run `just`.** The `justfile` is the command reference for every shell function in this repo (`nixctl`, `cfg`, `dns`, `vpn`, ...).
 
 ## Overview
 
-- Single flake, hosts auto-discovered from `hosts/`; each host picks the modules it needs.
-- System configuration in `modules/system/`, user configuration (Home Manager) in `modules/home/`.
-- Typed `custom.*` options for choices that must be explicit per host (window managers, greeter, unfree policy, ...).
-- Day-to-day operations wrapped in two shell functions: `nixctl` (system) and `cfg` (the configuration repository).
-- Hyprland and Noctalia user configuration is intentionally managed outside Nix (see [Externally managed configuration](#externally-managed-configuration)).
+- Single flake. Hosts are auto-discovered from `hosts/`, and each host picks the modules it needs.
+- System configuration lives in `modules/system/`, user configuration (Home Manager) in `modules/home/`.
+- Typed `custom.*` options for choices every host must make explicitly.
+- Hyprland and Noctalia user configuration is managed outside Nix (see [Externally managed configuration](#externally-managed-configuration)).
+
+## Command reference
+
+Day-to-day operations are Zsh functions in `scripts/*.zsh`, loaded into every interactive shell. The `justfile` documents them. It only prints help and runs nothing.
+
+```bash
+just            # list all groups
+just nixctl     # show one group
+```
+
+`just` works from anywhere inside `~/nixos`.
+
+| Group | Covers |
+|---|---|
+| `nixctl` | Rebuilds, generations, updates, store maintenance |
+| `cfg` | This repository: git, formatting, snapshots |
+| `dns` | DNS diagnostics and recovery |
+| `network` | Public IP, VPN, zapret |
+| `wm` | Hyprland, Umbriel, Kitty |
+| `misc` | Helium, VeraCrypt vault, shell helpers |
+
+When you add, remove or rename a function in `scripts/`, update the `justfile` as well. It is maintained by hand.
 
 ## Requirements
 
-The checkout **must live at `~/nixos`**. `flakeDir` in `flake.nix` points there so that `nh`, `cfg` and `nixctl` can run git and write `flake.lock`; flake evaluation itself is sandboxed and would otherwise resolve to the read-only store copy, which has no `.git`. To use another location, change that one line.
+The checkout **must live at `~/nixos`**. `flakeDir` in `flake.nix` points there so that `nh` and the shell functions can run git and write `flake.lock`. Flake evaluation is sandboxed and would otherwise resolve to the read-only store copy, which has no `.git`. To use another location, change that one line.
 
 ## First build
-
-After cloning the repository to `~/nixos`, run:
 
 ```bash
 sudo nixos-rebuild switch --flake ~/nixos#wakizashi
 ```
 
-The Noctalia substituter and trusted public key are configured in `modules/system/nix.nix`, so the first build already uses the binary cache.
-
-After that, use `nixctl switch` (see below).
+The Noctalia substituter and trusted public key are set in `modules/system/nix.nix`, so the first build already uses the binary cache. After that, use `nixctl switch`.
 
 ## Daily workflow
 
 ```bash
-cfg fmt          # format Nix files
+cfg fmt          # nix fmt (nixfmt-tree); run before committing
 nixctl switch    # build and apply
 cfg push         # stage, commit, rebase, push
-
-nixctl update    # update flake inputs, validate, build, and switch
-nixctl diff      # what changed between the last two generations
-nixctl rollback  # go back if something broke
+nixctl update    # update inputs, validate, build, switch
 ```
 
-`nixctl update` runs `nix flake update`, then `nix flake check --no-build`, and only switches if both succeed.
-
-## System commands
-
-`nixctl` wraps common `nixos-rebuild` / `nh` operations.
-
-```bash
-nixctl boot                 # Build and set next boot entry (nh os boot)
-nixctl clean                # Remove old generations (keeps 1 via nh clean)
-nixctl clean keep <N>       # Keep N generations (nh clean all --keep N)
-nixctl diff [<gen>-<gen>]   # Diff store paths between two generations
-nixctl find <query>         # Search Nix store
-nixctl find <query> -fzf    # Select a store path with fzf and open it in Yazi
-nixctl list                 # List system generations
-nixctl rollback             # Switch to previous generation
-nixctl switch               # Apply current configuration (nh os switch)
-nixctl update               # Update flake inputs, validate, build, and switch
-nixctl verify               # Verify and repair the Nix store
-```
-
-## Configuration commands
-
-`cfg` provides shortcuts for working with the configuration repository (`$FLAKE`).
-
-```bash
-cfg edit             # Open configuration in Yazi
-cfg tree             # Show configuration tree
-cfg status           # Show Git status
-cfg diff             # Show changes
-cfg log              # Show commit history
-cfg copy             # Concatenate all non-hidden files (with path headers) and copy to clipboard as a file
-cfg copy raw         # Same, without headers, copied as text
-cfg track            # Stage changes
-cfg discard          # Discard uncommitted changes (reset --hard + clean -fd)
-cfg fmt              # Run `nix fmt` on the flake
-cfg push             # Stage all, commit (opens editor), rebase onto upstream, and push
-cfg rewind <commit>  # Hard reset the current branch to a commit and force-push
-```
-
-`cfg copy` replaces binary and image files with a placeholder line and writes the result to `/tmp/nixos-config.txt`.
-
-`cfg rewind` rewrites remote history, so it is deliberately strict:
-
-- Refuses to run with uncommitted changes or a detached `HEAD`.
-- Lists the commits that will be dropped before asking for confirmation.
-- Pushes first (`--force-with-lease`), then resets locally, so a failed push leaves the local branch untouched.
-
-## Other shell functions
-
-```bash
-dns fix       # Diagnose and repair local DNS (dnscrypt-proxy), tiered fallback: restart -> DoH -> plaintext
-dns restore   # Revert any DNS fallback and restore dnscrypt-proxy on 127.0.0.1
-dns status    # Show dnscrypt-proxy status, active override, and resolv.conf
-
-hypr edit     # Open Hyprland user config in Yazi
-hypr tree     # Show Hyprland config tree
-hypr copy     # Copy Hyprland *.lua config files to clipboard
-hypr reload   # Reload Hyprland config
-hypr clients  # List Hyprland clients
-
-umb edit        # Open Umbriel user config in Yazi
-umb tree        # Show Umbriel config tree
-umb copy [raw]  # Copy Umbriel *.toml config files to clipboard (as a file, or as text with raw)
-umb reload      # Reload Umbriel config
-umb windows     # List Umbriel windows
-umb keybinds    # Open Umbriel keybind cheatsheet
-
-vpn up [COUNTRY]  # Connect ProtonVPN (default: CH)
-vpn down          # Disconnect ProtonVPN
-vpn status        # Show ProtonVPN status
-
-zapret up|down|status  # Start/stop/status the zapret DPI-desync service
-                       # (auto-toggled by a NetworkManager dispatcher when a VPN interface goes up/down)
-
-vault mount    # Mount the VeraCrypt container
-vault unmount  # Unmount the VeraCrypt container
-
-helium                # Launch Helium (arguments are passed through)
-helium version        # Compare installed Helium version against latest GitHub release
-helium update [ver]   # Update pkgs/helium.json to a new version (fetches, verifies, hashes)
-
-network   # Show current public IP, geo location, and active DNS resolver
-triplist  # Print a small reference list of trusted IPs
-fn [dir]  # List defined shell function names from *.zsh files in a directory
-kitty opacity [VALUE]  # Get/set Kitty terminal background opacity
-zsh history   # Open .zsh_history in the configured editor
-```
-
-All of these live in `scripts/*.zsh` and are loaded into every interactive zsh session.
+`nixctl update` only switches if both `nix flake update` and `nix flake check --no-build` succeed.
 
 ## Hosts
-
-Hosts are auto-discovered from the `hosts/` directory (see `flake.nix`).
-
-### Host contract
 
 Each `hosts/<name>/default.nix` exports:
 
@@ -145,21 +69,24 @@ Each `hosts/<name>/default.nix` exports:
 }
 ```
 
+`flake.nix` passes `inputs`, `username` and `flakeDir` to both system and Home Manager modules.
+
 ### Adding a host
 
-1. Create `hosts/<name>/` with `default.nix`, `hardware.nix` and `home.nix` (copy an existing host as a template).
-2. Pick modules in `modules` and set the required `custom.*` options in `configuration`.
-3. Build: `sudo nixos-rebuild switch --flake ~/nixos#<name>`.
+1. Create `hosts/<name>/` with `default.nix`, `hardware.nix` and `home.nix` (copy an existing host).
+2. Replace `hardware.nix` with the output of `nixos-generate-config --show-hardware-config`.
+3. Pick modules in `modules` and set the required `custom.*` options in `configuration`.
+4. Build: `sudo nixos-rebuild switch --flake ~/nixos#<name>`.
 
 No changes to `flake.nix` are needed. The directory name is the single source of truth for the hostname: `flake.nix` sets `networking.hostName` from it, because `nh` and `nixos-rebuild` pick the configuration by hostname.
 
 ### Current hosts
 
-- **wakizashi** (`x86_64-linux`) — AMD/Nvidia desktop. Umbriel and Hyprland window managers with the Noctalia greeter, zsh shell, push-to-talk, and full unfree package access.
+- **wakizashi** (`x86_64-linux`): AMD/Nvidia desktop with Umbriel and Hyprland, Noctalia greeter, zsh, push-to-talk and unrestricted unfree packages.
 
 ## Custom options
 
-Options without a default must be set explicitly by every host that imports the module.
+Options without a default must be set by every host that imports the module.
 
 | Option | Module | Purpose |
 |---|---|---|
@@ -167,64 +94,59 @@ Options without a default must be set explicitly by every host that imports the 
 | `custom.greeter.backend` | `greeter.nix` | Login greeter: `noctalia` or `tuigreet`. |
 | `custom.user.shell` | `shell.nix` | Login shell: `zsh`, `bash` or `fish`. |
 | `custom.unfree.mode` | `unfree.nix` | `all`, `none`, or `selected` (with `custom.unfree.packages`). |
-| `modules.ptt.{enable,device,button}` | `ptt.nix` | Push-to-talk from an evdev button (see below). |
-| `custom.theme.icon.{name,package}` | `modules/home/theme.nix` | GTK icon theme (Home Manager side). |
+| `modules.ptt.{enable,device,button}` | `ptt.nix` | Push-to-talk from an evdev button. |
+| `custom.theme.icon.{name,package}` | `modules/home/theme.nix` | GTK icon theme (Home Manager). |
 
-## System design notes
+## Design notes
 
 ### Network and DNS
 
-- DNS goes through `dnscrypt-proxy` on `127.0.0.1` / `::1` using **Anonymized DNSCrypt** (DNSCrypt only, DoH disabled), with DNSSEC, no-log and no-filter resolvers required.
-- NetworkManager's DNS handling is disabled and there is **no fallback resolver on purpose**: if the proxy is down, DNS stops instead of leaking. `dns fix` is the recovery path; every downgrade (DoH, then plaintext) asks for confirmation, and the plaintext tier reverts itself after 30 minutes.
+- DNS goes through `dnscrypt-proxy` on `127.0.0.1` / `::1` using **Anonymized DNSCrypt** (DoH disabled), requiring DNSSEC, no-log and no-filter resolvers.
+- NetworkManager's DNS handling is disabled and there is **no fallback resolver on purpose**: if the proxy is down, DNS stops instead of leaking. `dns fix` is the recovery path. Every downgrade (DoH, then plaintext) asks for confirmation, and the plaintext tier reverts itself after 30 minutes.
 - mDNS (avahi) is disabled.
-- `zapret` (DPI bypass) is stopped automatically when a `proton*` / `tun*` interface comes up and started again when it goes down (NetworkManager dispatcher).
+- `zapret` (DPI bypass) is stopped when a `proton*` / `tun*` interface comes up and started again when it goes down.
 - Passwordless `sudo` is limited to restarting `dnscrypt-proxy` and starting/stopping `zapret`.
 
 ### Push-to-talk
 
-`modules.ptt` runs a hardened user service that reads one mouse button from `/dev/input/by-id/...` and unmutes the default audio source only while the button is held. It fails closed: the source is muted on startup, on device loss and on service stop. Changing the mute state manually from the sound settings is respected until the next button event. Access to the one input device is granted to the `ptt` group through a udev rule.
+`modules.ptt` runs a hardened user service that reads one mouse button from `/dev/input/by-id/...` and unmutes the default audio source only while the button is held. It fails closed: the source is muted on startup, on device loss and on service stop. Manual mute changes from the sound settings are respected until the next button event. A udev rule grants the `ptt` group access to that one input device.
 
-### Memory and storage
+### Shell scripts
 
-zram swap (zstd, 50% of RAM) plus an 8 GiB swapfile with random encryption at lower priority. Weekly store optimisation, periodic `nh clean` (`--keep-since 3d --keep 10`), `fstrim` enabled, systemd-boot keeping 10 generations.
-
-### Graphics
-
-Nvidia open kernel modules with the latest driver package from nixpkgs, paired with `linuxPackages_latest`; VA-API goes through `nvidia-vaapi-driver`.
+`modules/home/zsh.nix` syntax-checks every `scripts/*.zsh` with `zsh -n` during the build and sources the checked copies, so a parse error fails the build instead of reaching the system.
 
 ## Externally managed configuration
 
-These are intentionally not generated by Nix and live outside the NixOS configuration repository:
+Not generated by Nix and not stored in this repository:
 
-| What | Where | Helper |
-|---|---|---|
-| Hyprland (Lua) | `~/.config/hypr/` | `hypr` |
-| Noctalia shell | `~/.local/state/noctalia/` | — |
+| What | Where |
+|---|---|
+| Hyprland (Lua) | `~/.config/hypr/` |
+| Noctalia shell state | `~/.local/state/noctalia/` |
+| Umbriel `noctalia.toml` | `~/.config/umbriel/` (written by Noctalia, optionally included by `config.toml`) |
+| Kitty theme and opacity | `~/.config/kitty/themes/noctalia.conf`, `~/.config/kitty/opacity.conf` |
+| VeraCrypt container | `~/Documents/veracrypt/veracrypt` |
 
-Umbriel TOML configuration files are managed through Home Manager. Their source files live in `~/nixos/assets/umbriel/` and are linked into `~/.config/umbriel/`. Regular `.toml` files are discovered automatically, excluding `noctalia.toml`. The links use `config.lib.file.mkOutOfStoreSymlink`, so edits to the repository files are reflected directly in the linked configuration files.
+The other Umbriel TOML files live in `assets/umbriel/` and are linked into `~/.config/umbriel/` by Home Manager. Every `.toml` except `noctalia.toml` is picked up automatically and linked with `mkOutOfStoreSymlink`, so edits in the repository apply without a rebuild.
 
-On a fresh install, restore or recreate the externally managed files before expecting the desktop to look the same.
-
+On a fresh install, restore or recreate these files before expecting the desktop to look the same.
 
 ## Custom packages
 
 `pkgs/` is exposed through a flake overlay:
 
-- **helium** — Helium browser, repackaged from the upstream `.deb`. Version and hash live in `pkgs/helium.json` and are updated with `helium update`.
-- **yaruCustom** — Yaru icon theme with extra application icons taken from the `desktop-icons` flake input.
+- **helium**: Helium browser, repackaged from the upstream `.deb`. Version and hash live in `pkgs/helium.json`.
+- **yaruCustom**: Yaru icon theme with extra application icons from the `desktop-icons` flake input.
 
 ## Structure
 
 ```text
-hosts/      # Host-specific configuration (system + hardware + home entrypoint), auto-discovered by flake.nix
+hosts/      # Per-host configuration (system + hardware + home entrypoint), auto-discovered
 modules/
-  system/   # Reusable NixOS modules (audio, boot, networking, DNS, greeter, Nvidia, window manager, zapret, ...)
-  home/     # Reusable Home Manager modules (shell, editor, theming, packages, dotfile-managed apps, ...)
-assets/     # Application assets (Umbriel TOML configs, fastfetch, starship, ASCII art, images)
-pkgs/       # Custom packages (helium browser, custom Yaru icon theme) exposed via a flake overlay
-scripts/    # Zsh functions, concatenated into programs.zsh.initContent by modules/home/zsh.nix
+  system/   # NixOS modules
+  home/     # Home Manager modules
+assets/     # Umbriel TOML, fastfetch, starship, ASCII art, images
+pkgs/       # Custom packages exposed via a flake overlay
+scripts/    # Zsh functions, syntax-checked and sourced by modules/home/zsh.nix
+justfile    # Command reference (help only)
 ```
-
-## Formatting
-
-`cfg fmt` runs `nix fmt` (`nixfmt-tree`). Run it before committing.

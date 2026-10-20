@@ -81,7 +81,6 @@
 
     # Theming
     adwaita-icon-theme
-    bibata-cursors
     yaru-theme
   ];
 }

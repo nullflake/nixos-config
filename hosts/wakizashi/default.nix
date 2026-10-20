@@ -1,3 +1,5 @@
+{ pkgs, ... }:
+
 let
   username = "nullflake";
 in
@@ -26,6 +28,7 @@ in
     ../../modules/system/security.nix
     ../../modules/system/shell.nix
     ../../modules/system/steam.nix
+    ../../modules/system/theme.nix
     ../../modules/system/unfree.nix
     ../../modules/system/user.nix
     ../../modules/system/wayland.nix
@@ -35,7 +38,6 @@ in
   ];
 
   configuration = {
-
     custom = {
       greeter.backend = "noctalia";
       unfree.mode = "all";
@@ -44,6 +46,12 @@ in
         "umbriel"
         "hyprland"
       ];
+
+      theme.cursor = {
+        name = "Bibata-Modern-Classic";
+        package = pkgs.bibata-cursors;
+        size = 24;
+      };
     };
 
     modules.ptt = {

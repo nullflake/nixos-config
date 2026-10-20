@@ -75,10 +75,14 @@
         passwordless-sync-users = [ username ];
 
         settings = {
+          /*
+            Single source of truth is custom.theme.cursor, matching the
+            rest of the desktop environment.
+          */
           cursor = {
-            theme = "Bibata-Modern-Classic";
-            size = 24;
-            path = "${pkgs.bibata-cursors}/share/icons";
+            theme = config.custom.theme.cursor.name;
+            size = config.custom.theme.cursor.size;
+            path = "${config.custom.theme.cursor.package}/share/icons";
           };
 
           /*

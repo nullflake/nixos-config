@@ -1,5 +1,6 @@
 {
   config,
+  osConfig,
   lib,
   pkgs,
   ...
@@ -12,22 +13,27 @@ in
   options.custom.theme.icon = {
     name = lib.mkOption {
       type = lib.types.str;
-      # No default on purpose — every host must pick one explicitly.
       description = "Icon theme name as GTK sees it (gtk.iconTheme.name).";
     };
 
     package = lib.mkOption {
       type = lib.types.package;
-      # No default on purpose — every host must pick one explicitly.
       description = "Package providing the icon theme.";
     };
   };
 
   config = {
+    home.pointerCursor = {
+      name = osConfig.custom.theme.cursor.name;
+      package = osConfig.custom.theme.cursor.package;
+      size = osConfig.custom.theme.cursor.size;
+      gtk.enable = true;
+      x11.enable = true;
+    };
+
     gtk = {
       enable = true;
 
-      # Using the dual-mode adw-gtk3 to support both light and dark mode transitions
       theme = {
         name = "adw-gtk3";
         package = pkgs.adw-gtk3;

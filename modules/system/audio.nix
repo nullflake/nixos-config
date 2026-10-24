@@ -9,4 +9,7 @@
 
   # High-priority audio scheduling
   security.rtkit.enable = true;
+
+  # MPRIS media controls
+  services.playerctld.enable = true;
 }

@@ -11,11 +11,19 @@ in
   options.custom.theme.cursor = {
     name = lib.mkOption {
       type = lib.types.str;
+      /*
+        No default on purpose.
+        Every host must pick one explicitly.
+      */
       description = "Cursor theme name.";
     };
 
     package = lib.mkOption {
       type = lib.types.package;
+      /*
+        No default on purpose.
+        Every host must pick one explicitly.
+      */
       description = "Package providing the cursor theme.";
     };
 

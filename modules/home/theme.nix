@@ -24,6 +24,7 @@ in
 
   config = {
     home.pointerCursor = {
+      enable = true;
       name = osConfig.custom.theme.cursor.name;
       package = osConfig.custom.theme.cursor.package;
       size = osConfig.custom.theme.cursor.size;

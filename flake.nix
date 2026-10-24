@@ -46,21 +46,7 @@
       mkHost =
         name: _:
         let
-          hostRaw = import ./hosts/${name};
-
-          /*
-            Support both static attrset and function-based host configurations.
-            Nix's lazy evaluation allows reading host.system to instantiate pkgs
-            without encountering circular evaluation issues.
-          */
-          host =
-            if builtins.isFunction hostRaw then
-              hostRaw {
-                inherit inputs;
-                pkgs = inputs.nixpkgs.legacyPackages.${host.system};
-              }
-            else
-              hostRaw;
+          host = import ./hosts/${name};
 
           /*
             The real on-disk checkout at ~/nixos. Flake evaluation is
@@ -121,23 +107,7 @@
         };
 
       # Collect unique systems across all hosts for formatter registration.
-      systems = lib.unique (
-        lib.mapAttrsToList (
-          name: _:
-          let
-            hostRaw = import ./hosts/${name};
-            host =
-              if builtins.isFunction hostRaw then
-                hostRaw {
-                  inherit inputs;
-                  pkgs = inputs.nixpkgs.legacyPackages.${host.system};
-                }
-              else
-                hostRaw;
-          in
-          host.system
-        ) hosts
-      );
+      systems = lib.unique (lib.mapAttrsToList (name: _: (import ./hosts/${name}).system) hosts);
     in
     {
       nixosConfigurations = lib.mapAttrs mkHost hosts;

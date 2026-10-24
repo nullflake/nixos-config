@@ -1,5 +1,3 @@
-{ pkgs, ... }:
-
 let
   username = "nullflake";
 in
@@ -37,31 +35,33 @@ in
     ../../modules/system/zapret.nix
   ];
 
-  configuration = {
-    custom = {
-      greeter.backend = "noctalia";
-      unfree.mode = "all";
-      user.shell = "zsh";
-      windowManager = [
-        "umbriel"
-        "hyprland"
-      ];
+  configuration =
+    { pkgs, ... }:
+    {
+      custom = {
+        greeter.backend = "noctalia";
+        unfree.mode = "all";
+        user.shell = "zsh";
+        windowManager = [
+          "umbriel"
+          "hyprland"
+        ];
 
-      theme.cursor = {
-        name = "Bibata-Modern-Classic";
-        package = pkgs.bibata-cursors;
-        size = 24;
+        theme.cursor = {
+          name = "Bibata-Modern-Classic";
+          package = pkgs.bibata-cursors;
+          size = 24;
+        };
       };
+
+      modules.ptt = {
+        enable = true;
+        device = "/dev/input/by-id/usb-Logitech_Gaming_Mouse_G502_0D7C36763738-event-mouse";
+        button = 276;
+      };
+
+      home-manager.users.${username} = import ./home.nix;
+
+      system.stateVersion = "26.05";
     };
-
-    modules.ptt = {
-      enable = true;
-      device = "/dev/input/by-id/usb-Logitech_Gaming_Mouse_G502_0D7C36763738-event-mouse";
-      button = 276;
-    };
-
-    home-manager.users.${username} = import ./home.nix;
-
-    system.stateVersion = "26.05";
-  };
 }

@@ -62,7 +62,6 @@
     nvd
 
     # Network
-    dnsutils
     ookla-speedtest
     proton-vpn-cli
     trippy

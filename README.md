@@ -2,7 +2,7 @@
 
 **NixOS + Home Manager** flake for a personal desktop: per-host system and home modules, custom packages, application assets, and Zsh shell functions.
 
-> **Not sure which command to run? Run `just`.** The `justfile` is the command reference for every shell function in this repo (`nixctl`, `cfg`, `dns`, `vpn`, ...).
+> **Not sure which command to run? Run `just`.** The `justfile` is the command reference for every shell function in this repo (`nixctl`, `cfg`, `vpn`, ...).
 
 ## Overview
 
@@ -26,7 +26,6 @@ just nixctl     # show one group
 |---|---|
 | `nixctl` | Rebuilds, generations, updates, store maintenance |
 | `cfg` | This repository: git, formatting, snapshots |
-| `dns` | DNS diagnostics and recovery |
 | `network` | Public IP, VPN, zapret |
 | `wm` | Hyprland, Umbriel, Kitty |
 | `misc` | Helium, VeraCrypt vault, shell helpers |
@@ -102,10 +101,10 @@ Options without a default must be set by every host that imports the module.
 ### Network and DNS
 
 - DNS goes through `dnscrypt-proxy` on `127.0.0.1` / `::1` using **Anonymized DNSCrypt** (DoH disabled), requiring DNSSEC, no-log and no-filter resolvers.
-- NetworkManager's DNS handling is disabled and there is **no fallback resolver on purpose**: if the proxy is down, DNS stops instead of leaking. `dns fix` is the recovery path. Every downgrade (DoH, then plaintext) asks for confirmation, and the plaintext tier reverts itself after 30 minutes.
+- NetworkManager's DNS handling is disabled and there is **no fallback resolver on purpose**: if the proxy is down, DNS stops instead of leaking.
 - mDNS (avahi) is disabled.
 - `zapret` (DPI bypass) is stopped when a `proton*` / `tun*` interface comes up and started again when it goes down.
-- Passwordless `sudo` is limited to restarting `dnscrypt-proxy` and starting/stopping `zapret`.
+- Passwordless `sudo` is limited to starting/stopping `zapret`.
 
 ### Push-to-talk
 

@@ -38,14 +38,6 @@ cfg:
     @echo "cfg track                : Stage all changes (git add .)"
     @echo "cfg tree                 : Display repository directory tree (eza)"
 
-# DNS diagnostics & recovery (dns)
-[group('network')]
-dns:
-    @echo "{{BOLD + YELLOW}}dns (DNS Diagnostics & Repair){{NORMAL}}"
-    @echo "dns fix                  : Diagnose & repair DNS via tiered fallback (Restart -> DoH -> Plaintext)"
-    @echo "dns restore              : Revert overrides and restore dnscrypt-proxy on 127.0.0.1"
-    @echo "dns status               : Show dnscrypt-proxy status, active overrides, and resolv.conf"
-
 # Network diagnostics, VPN & DPI bypass
 [group('network')]
 network:

@@ -1,4 +1,3 @@
-{ username, ... }:
 {
   networking.networkmanager.enable = true;
   networking.firewall.enable = true;
@@ -19,19 +18,6 @@
     device names to the LAN outside the encrypted DNS path.
   */
   services.avahi.enable = false;
-
-  # Allow restarting dnscrypt-proxy without a password prompt
-  security.sudo.extraRules = [
-    {
-      users = [ username ];
-      commands = [
-        {
-          command = "/run/current-system/sw/bin/systemctl restart dnscrypt-proxy";
-          options = [ "NOPASSWD" ];
-        }
-      ];
-    }
-  ];
 
   services.dnscrypt-proxy = {
     enable = true;

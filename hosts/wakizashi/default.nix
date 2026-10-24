@@ -54,10 +54,14 @@ in
         };
       };
 
-      modules.ptt = {
-        enable = true;
-        device = "/dev/input/by-id/usb-Logitech_Gaming_Mouse_G502_0D7C36763738-event-mouse";
-        button = 276;
+      modules = {
+        homeAssistant.enable = true;
+
+        ptt = {
+          enable = true;
+          device = "/dev/input/by-id/usb-Logitech_Gaming_Mouse_G502_0D7C36763738-event-mouse";
+          button = 276;
+        };
       };
 
       home-manager.users.${username} = import ./home.nix;

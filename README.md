@@ -102,7 +102,7 @@ Options without a default must be set by every host that imports the module.
 
 - DNS goes through `dnscrypt-proxy` on `127.0.0.1` / `::1` using **Anonymized DNSCrypt** (DoH disabled), requiring DNSSEC, no-log and no-filter resolvers.
 - NetworkManager's DNS handling is disabled and there is **no fallback resolver on purpose**: if the proxy is down, DNS stops instead of leaking.
-- Avahi is disabled; Home Assistant's own zeroconf still announces itself on the LAN.
+- Avahi is disabled. When enabled with `modules.homeAssistant.enable`, Home Assistant can still announce itself on the LAN through its own zeroconf (`default_config`). Its UI is restricted to this PC by an IPv4/IPv6 firewall rule blocking non-loopback TCP access to port `8123`, including on trusted interfaces; discovery and outbound cloud connections remain enabled. The restriction requires the firewall to be enabled with the `iptables` backend. If the HTTP port is changed in Home Assistant's UI, update `port` in `modules/system/homeAssistant.nix` as well.
 - `zapret` (DPI bypass) is stopped when a `proton*` / `tun*` interface comes up and started again when it goes down.
 - Passwordless `sudo` is limited to starting/stopping `zapret`.
 

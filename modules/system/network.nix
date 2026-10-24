@@ -15,8 +15,10 @@
 
   /*
     Avahi is disabled to limit system-level mDNS hostname announcements.
-    Home Assistant's own zeroconf remains enabled via default_config
-    for local discovery and still announces itself on the LAN.
+    When Home Assistant is enabled, its own zeroconf can still announce
+    the instance on the LAN via default_config, independently of Avahi.
+    Its module separately blocks non-loopback TCP access to port 8123;
+    that restriction does not disable discovery or announcements.
   */
   services.avahi.enable = false;
 

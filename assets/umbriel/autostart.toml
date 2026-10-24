@@ -1,10 +1,9 @@
 [general]
 autostart = [
+    # Share Wayland, desktop, and Qt settings with D-Bus and systemd user services.
     "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=Umbriel QT_QPA_PLATFORMTHEME QT_STYLE_OVERRIDE XDG_SESSION_TYPE=wayland",
+    # Activate NixOS graphical session services for this compositor session.
     "systemctl --user start nixos-fake-graphical-session.target",
-    "gnome-keyring-daemon --start --components=secrets",
-    "systemctl --user restart pipewire wireplumber",
-    "gvfsd",
-    "gvfsd-fuse $XDG_RUNTIME_DIR/gvfs",
+    # Start the Noctalia desktop shell.
     "noctalia"
 ]

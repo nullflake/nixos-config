@@ -42,7 +42,7 @@ The checkout **must live at `~/nixos`**. `flakeDir` in `flake.nix` points there 
 sudo nixos-rebuild switch --flake ~/nixos#wakizashi
 ```
 
-The Noctalia substituter and trusted public key are set in `modules/system/nix.nix`, so the first build already uses the binary cache. After that, use `nixctl switch`.
+The Noctalia cache configuration in `modules/system/nix.nix` takes effect after the first activation; the first build may compile Noctalia from source. After that, use `nixctl switch`.
 
 ## Daily workflow
 

@@ -18,7 +18,7 @@ nixctl:
     @echo "nixctl list              : List all system generations"
     @echo "nixctl rollback          : Switch back to the previous generation"
     @echo "nixctl switch            : Apply current configuration (nh os switch)"
-    @echo "nixctl update            : Update flake inputs, validate, build, and switch"
+    @echo "nixctl update            : Update flake inputs, try the Helium pin update, validate, then build and switch"
     @echo "nixctl verify            : Verify and repair the Nix store contents"
     @echo "ns                       : Alias for nixctl switch"
 

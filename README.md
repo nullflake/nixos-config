@@ -50,10 +50,10 @@ The Noctalia cache configuration in `modules/system/nix.nix` takes effect after 
 cfg fmt          # nix fmt (nixfmt-tree); run before committing
 nixctl switch    # build and apply
 cfg push         # stage, commit, rebase, push
-nixctl update    # update inputs, validate, build, switch
+nixctl update    # update inputs, try Helium update, validate, build, switch
 ```
 
-`nixctl update` only switches if both `nix flake update` and `nix flake check --no-build` succeed.
+`nixctl update` runs, in order: `nix flake update`, an attempt at `helium update` (a failure prints a warning and continues with the current pin), `nix flake check --no-build`, then builds and switches with `nh os switch`. A failed flake update or check stops the process before switching.
 
 ## Hosts
 

@@ -101,15 +101,29 @@ nixctl() {
         return 1
       fi
 
+      # Helium is pinned in pkgs/helium.json, outside flake.lock. A failed update
+      # is not fatal: the current pin keeps working.
+      echo "Updating Helium pin..."
+      if ! helium update; then
+        echo "Warning: Helium update failed; continuing with the current pin." >&2
+      fi
+
       echo "Validating configuration (nix flake check)..."
       if ! nix flake check "$FLAKE" --no-build; then
         echo "Error: flake check failed. Not switching." >&2
-        echo "Fix the issue, or run 'cfg diff' to review flake.lock changes." >&2
+        echo "Run 'cfg diff' to review the flake.lock and pkgs/helium.json changes." >&2
         return 1
       fi
 
       echo "Building and switching..."
-      nh os switch
+      local rc
+      if nh os switch; then
+        :
+      else
+        rc=$?
+        echo "Error: switch failed (exit $rc). Run 'cfg diff' to review the flake.lock and pkgs/helium.json changes." >&2
+        return $rc
+      fi
       ;;
     verify)
       echo "Verifying and repairing nix store..."

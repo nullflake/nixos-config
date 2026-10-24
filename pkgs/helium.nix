@@ -81,29 +81,14 @@
 let
   pname = "helium";
 
-  # Version and hashes are maintained by the helium bump helper.
+  # Version and hash are maintained by helium update (scripts/helium.zsh).
   sources = builtins.fromJSON (builtins.readFile ./helium.json);
   version = sources.version;
 
-  # Helium publishes separate Debian packages for each supported Linux architecture.
-  suffix =
-    {
-      x86_64-linux = "amd64";
-      aarch64-linux = "arm64";
-    }
-    .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
-
-  hash =
-    if stdenv.hostPlatform.system == "x86_64-linux" then
-      sources.hash
-    else if stdenv.hostPlatform.system == "aarch64-linux" then
-      sources.aarch64Hash
-    else
-      throw "Unsupported system: ${stdenv.hostPlatform.system}";
-
+  # Only the amd64 Debian package is packaged; `helium update` maintains the hash.
   src = fetchurl {
-    url = "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-bin_${version}-1_${suffix}.deb";
-    inherit hash;
+    url = "https://github.com/imputnet/helium-linux/releases/download/${version}/helium-bin_${version}-1_amd64.deb";
+    hash = sources.hash;
   };
 
   inherit (lib) makeLibraryPath makeSearchPathOutput;
@@ -344,10 +329,7 @@ stdenv.mkDerivation {
     description = "Private, fast, and honest web browser based on Chromium";
     license = lib.licenses.gpl3Only;
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
-    platforms = [
-      "x86_64-linux"
-      "aarch64-linux"
-    ];
+    platforms = [ "x86_64-linux" ];
     mainProgram = "helium";
   };
 }

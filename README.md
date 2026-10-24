@@ -102,7 +102,7 @@ Options without a default must be set by every host that imports the module.
 
 - DNS goes through `dnscrypt-proxy` on `127.0.0.1` / `::1` using **Anonymized DNSCrypt** (DoH disabled), requiring DNSSEC, no-log and no-filter resolvers.
 - NetworkManager's DNS handling is disabled and there is **no fallback resolver on purpose**: if the proxy is down, DNS stops instead of leaking.
-- mDNS (avahi) is disabled.
+- Avahi is disabled; Home Assistant's own zeroconf still announces itself on the LAN.
 - `zapret` (DPI bypass) is stopped when a `proton*` / `tun*` interface comes up and started again when it goes down.
 - Passwordless `sudo` is limited to starting/stopping `zapret`.
 

@@ -14,8 +14,9 @@
   networking.networkmanager.dns = "none";
 
   /*
-    Disable mDNS: local-network hostname resolution that can leak
-    device names to the LAN outside the encrypted DNS path.
+    Avahi is disabled to limit system-level mDNS hostname announcements.
+    Home Assistant's own zeroconf remains enabled via default_config
+    for local discovery and still announces itself on the LAN.
   */
   services.avahi.enable = false;
 

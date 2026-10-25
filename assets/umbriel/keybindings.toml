@@ -85,9 +85,10 @@
 "XF86AudioMute"        = "spawn:wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
 "XF86AudioMicMute"     = "spawn:wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
 
-"XF86MonBrightnessUp"   = "spawn:brightnessctl set 5%+"
-"XF86MonBrightnessDown" = "spawn:brightnessctl set 5%-"
-
 "XF86AudioPlay" = "spawn:playerctl play-pause"
 "XF86AudioNext" = "spawn:playerctl next"
 "XF86AudioPrev" = "spawn:playerctl previous"
+
+# brightness (laptop backlight; requires brightnessctl, not installed by this config)
+"XF86MonBrightnessUp"   = "spawn:brightnessctl set 5%+"
+"XF86MonBrightnessDown" = "spawn:brightnessctl set 5%-"

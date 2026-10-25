@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 let
@@ -15,7 +14,22 @@ let
   port = 8123;
 in
 {
-  options.modules.homeAssistant.enable = lib.mkEnableOption "Home Assistant";
+  options.modules.homeAssistant = {
+    enable = lib.mkEnableOption "Home Assistant";
+
+    devices = lib.mkOption {
+      type = lib.types.attrsOf (
+        lib.types.submodule {
+          options.name = lib.mkOption {
+            type = lib.types.str;
+            description = "Device display name.";
+          };
+        }
+      );
+      default = { };
+      description = "Local Yeelight devices indexed by IP address.";
+    };
+  };
 
   config = lib.mkIf cfg.enable {
     assertions = [
@@ -33,19 +47,12 @@ in
       enable = true;
       openFirewallForComponents = false;
 
-      customComponents = [
-        pkgs.home-assistant-custom-components.xiaomi_home
-      ];
-
       /*
-        Provides integration dependencies; this list does not activate them.
-        default_config loads zeroconf, which makes HA discoverable on the LAN
-        independently of Avahi.
+        Dependencies for UI-configured integrations and onboarding defaults.
+        NixOS infers dependencies for YAML-configured integrations automatically.
       */
       extraComponents = [
         "roborock"
-        "ffmpeg"
-        "zeroconf"
         "met"
         "radio_browser"
       ];
@@ -58,6 +65,9 @@ in
           unit_system = "metric";
           time_zone = config.time.timeZone;
         };
+      }
+      // lib.optionalAttrs (cfg.devices != { }) {
+        yeelight.devices = cfg.devices;
       };
     };
 
@@ -73,7 +83,7 @@ in
       ip46tables -I nixos-fw 1 ! -i lo -p tcp --dport ${toString port} -j nixos-fw-refuse
     '';
 
-    # xiaomi_home hardcodes its OAuth redirect to homeassistant.local:8123
+    # The Home Assistant desktop launcher uses this local hostname.
     networking.hosts."127.0.0.1" = [ "homeassistant.local" ];
   };
 }

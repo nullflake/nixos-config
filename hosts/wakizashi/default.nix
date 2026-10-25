@@ -55,7 +55,19 @@ in
       };
 
       modules = {
-        homeAssistant.enable = true;
+        homeAssistant = {
+          enable = true;
+
+          /*
+            LAN control must stay enabled on the bulb.
+            Reserve its IP in the router's DHCP settings.
+          */
+          devices = {
+            "192.168.1.100" = {
+              name = "Mi Led Bulb";
+            };
+          };
+        };
 
         ptt = {
           enable = true;

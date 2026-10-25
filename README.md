@@ -1,151 +1,150 @@
 # NixOS Configuration
 
-**NixOS + Home Manager** flake for a personal desktop: per-host system and home modules, custom packages, application assets, and Zsh shell functions.
+Personal NixOS and Home Manager configuration based on `nixos-unstable`. One flake manages the operating system, user packages, desktop integration and shell tools, with separate modules selected by each host.
 
-> **Not sure which command to run? Run `just`.** The `justfile` is the command reference for every shell function in this repo (`nixctl`, `cfg`, `vpn`, ...).
+The current host is **[wakizashi](hosts/wakizashi/)**, an `x86_64-linux` AMD/Nvidia desktop running Umbriel or Hyprland with Noctalia. Its hardware, input devices and local services are configured for this machine.
 
-## Overview
+Recreating the desktop also requires settings maintained outside Nix. Review the files below before setting up a new system.
 
-- Single flake. Hosts are auto-discovered from `hosts/`, and each host picks the modules it needs.
-- System configuration lives in `modules/system/`, user configuration (Home Manager) in `modules/home/`.
-- Typed `custom.*` options for choices every host must make explicitly.
-- Hyprland and Noctalia user configuration is managed outside Nix (see [Externally managed configuration](#externally-managed-configuration)).
+## Before applying
 
-## Command reference
+The build commands assume an existing NixOS installation with flakes and `nix-command` enabled. For another machine, first [add a host](#adding-a-host) with its own hardware configuration.
 
-Day-to-day operations are Zsh functions in `scripts/*.zsh`, loaded into every interactive shell. The `justfile` documents them. It only prints help and runs nothing.
+Keep the checkout at **`~/nixos`** for the configured user. [flake.nix](flake.nix) sets `flakeDir` to `/home/<username>/nixos`; change it if using another location. The shell tools and `nh` use this writable checkout for Git operations and dependency updates. Home Manager also links Umbriel settings to files in this directory.
 
-```bash
-just            # list all groups
-just nixctl     # show one group
-```
+### Files to restore separately
 
-`just` works from anywhere inside `~/nixos`.
+These files are maintained outside the repository. Restore them from a backup or recreate them on a fresh installation.
 
-| Group | Covers |
-|---|---|
-| `nixctl` | Rebuilds, generations, updates, store maintenance |
-| `cfg` | This repository: git, formatting, snapshots |
-| `network` | Public IP, VPN, zapret |
-| `wm` | Hyprland, Umbriel, Kitty |
-| `misc` | Helium, VeraCrypt vault, shell helpers |
+| Files | Location |
+| --- | --- |
+| Hyprland configuration (Lua) | `~/.config/hypr/` |
+| Noctalia settings and state | `~/.local/state/noctalia/` |
+| Umbriel settings written by Noctalia | `~/.config/umbriel/noctalia.toml` |
+| Kitty theme and opacity | `~/.config/kitty/themes/noctalia.conf`, `~/.config/kitty/opacity.conf` |
+| VeraCrypt container used by `vault` | `~/Documents/veracrypt/veracrypt` |
 
-When you add, remove or rename a function in `scripts/`, update the `justfile` as well. It is maintained by hand.
+Noctalia can regenerate its Umbriel and Kitty theme files. Kitty opacity is managed by `kitty opacity`. Umbriel's `noctalia.toml` is an optional include; the other Umbriel settings come from [assets/umbriel/](assets/umbriel/).
 
-## Requirements
+## First activation
 
-The checkout **must live at `~/nixos`**. `flakeDir` in `flake.nix` points there so that `nh` and the shell functions can run git and write `flake.lock`. Flake evaluation is sandboxed and would otherwise resolve to the read-only store copy, which has no `.git`. To use another location, change that one line.
-
-## First build
+To build and activate the configuration on `wakizashi`:
 
 ```bash
 sudo nixos-rebuild switch --flake ~/nixos#wakizashi
 ```
 
-The Noctalia cache configuration in `modules/system/nix.nix` takes effect after the first activation; the first build may compile Noctalia from source. After that, use `nixctl switch`.
+This also applies the user's Home Manager configuration. The Noctalia binary cache in [nix.nix](modules/system/nix.nix) takes effect after activation, so the first build may compile Noctalia from source.
 
-## Daily workflow
+After activation, open a new Zsh session to use the shell functions below.
+
+## Everyday use
+
+| Command | Effect |
+| --- | --- |
+| `cfg fmt` | Format the Nix files with `nixfmt-tree`. |
+| `cfg diff` | Review staged and unstaged changes against `HEAD`. |
+| `nixctl switch` | Build and apply the configuration with `nh os switch`. |
+| `nixctl boot` | Build the configuration and select it for the next boot. |
+| `nixctl update` | Update dependencies, check the configuration, then build and apply it. |
+| `nixctl rollback` | Activate the previous system generation. |
+| `cfg push` | Stage all changes, commit, rebase on the upstream branch if configured, and push. |
+
+`nixctl update` updates `flake.lock`, tries to update the Helium pin in `pkgs/helium.json`, and runs `nix flake check --no-build` before calling `nh os switch`.
+
+A Helium update failure prints a warning and keeps the current pin. A failed flake update or check stops the command before switching. Dependency changes remain in the checkout if a later step fails; review them with `cfg diff`.
+
+### Command help
+
+The commands above are Zsh functions loaded from [scripts/](scripts/). The [justfile](justfile) provides help for them; its recipes print reference text without performing the documented operations.
+
+From anywhere inside `~/nixos`:
 
 ```bash
-cfg fmt          # nix fmt (nixfmt-tree); run before committing
-nixctl switch    # build and apply
-cfg push         # stage, commit, rebase, push
-nixctl update    # update inputs, try Helium update, validate, build, switch
+just            # list the available help topics
+just nixctl     # system operations and generations
+just cfg        # repository operations
+just network    # network diagnostics, VPN and zapret
+just wm         # Umbriel, Hyprland and Kitty
+just misc       # Helium, VeraCrypt and shell helpers
 ```
 
-`nixctl update` runs, in order: `nix flake update`, an attempt at `helium update` (a failure prints a warning and continues with the current pin), `nix flake check --no-build`, then builds and switches with `nh os switch`. A failed flake update or check stops the process before switching.
+When changing a shell function's interface, update its help in `justfile` too.
 
-## Hosts
+## Where to make changes
 
-Each `hosts/<name>/default.nix` exports:
+| Area | Location |
+| --- | --- |
+| Host identity, system imports and service settings | [hosts/wakizashi/default.nix](hosts/wakizashi/default.nix) |
+| Hardware and filesystems | [hosts/wakizashi/hardware.nix](hosts/wakizashi/hardware.nix) |
+| Home Manager imports and user settings | [hosts/wakizashi/home.nix](hosts/wakizashi/home.nix) |
+| System services and shared options | [modules/system/](modules/system/) |
+| User applications and desktop integration | [modules/home/](modules/home/), including [packages.nix](modules/home/packages.nix) |
+| Umbriel settings and application assets | [assets/](assets/) |
+| Shell functions | [scripts/](scripts/) |
+| Custom package definitions | [pkgs/](pkgs/) |
 
-```nix
-{
-  system = "x86_64-linux";
-  username = "...";
-  modules = [ ./hardware.nix ../../modules/system/... ];  # system modules to import
-  configuration = { ... };                                # options, home entrypoint, stateVersion
-}
-```
+Nix configuration changes take effect after rebuilding and activating the system. Shell scripts are checked with `zsh -n` during the build, and Zsh sources the checked copies from the Nix store.
 
-`flake.nix` passes `inputs`, `username` and `flakeDir` to both system and Home Manager modules.
+[Flakes read Git-tracked files](https://nix.dev/concepts/flakes.html). When adding a file, run `git add <path>` before rebuilding so the flake can see it.
 
-### Adding a host
+Existing Umbriel TOML files are linked directly to the checkout by [umbriel.nix](modules/home/umbriel.nix), except for Noctalia's `noctalia.toml`. Edit them in `assets/umbriel/` and run `umb reload` without rebuilding. Adding a new file requires activation to create its link and an entry in [config.toml](assets/umbriel/config.toml) to load it.
 
-1. Create `hosts/<name>/` with `default.nix`, `hardware.nix` and `home.nix` (copy an existing host).
-2. Replace `hardware.nix` with the output of `nixos-generate-config --show-hardware-config`.
-3. Pick modules in `modules` and set the required `custom.*` options in `configuration`.
-4. Build: `sudo nixos-rebuild switch --flake ~/nixos#<name>`.
+### Custom packages
 
-No changes to `flake.nix` are needed. The directory name is the single source of truth for the hostname: `flake.nix` sets `networking.hostName` from it, because `nh` and `nixos-rebuild` pick the configuration by hostname.
+[flake.nix](flake.nix) exposes two custom packages through an overlay:
 
-### Current hosts
+| Package | Definition |
+| --- | --- |
+| `helium` | [Helium browser](pkgs/helium.nix), repackaged from the upstream amd64 `.deb`. Version and hash are stored in [helium.json](pkgs/helium.json) and updated by `helium update`. |
+| `yaruCustom` | [Yaru icon theme](pkgs/yaruCustom.nix) extended with application icons from the `desktop-icons` flake input. |
 
-- **wakizashi** (`x86_64-linux`): AMD/Nvidia desktop with Umbriel and Hyprland, Noctalia greeter, zsh, push-to-talk and unrestricted unfree packages.
+## Adding a host
 
-## Custom options
+[flake.nix](flake.nix) discovers directories under `hosts/` automatically. Each host's `default.nix` exports `system`, `username`, `modules` and `configuration`. The directory name becomes both the flake configuration name and `networking.hostName`.
 
-Options without a default must be set by every host that imports the module.
+1. Copy `hosts/wakizashi/` to `hosts/<name>/`.
+2. Replace `hardware.nix` with the target machine's `nixos-generate-config --show-hardware-config` output.
+3. Set `username` and `system` in `default.nix`. Review system imports and settings there, then adjust the Home Manager imports and settings in `home.nix`.
+4. Review the GPU modules, Umbriel output settings in `assets/umbriel/config.toml`, and device settings for push-to-talk and Home Assistant.
+5. From the checkout, stage the new host with `git add hosts/<name>`.
+6. Build and activate with `sudo nixos-rebuild switch --flake ~/nixos#<name>`.
 
-| Option | Module | Purpose |
-|---|---|---|
-| `custom.windowManager` | `windowManager.nix` | List of `hyprland` / `umbriel`; installs them and offers them at the greeter. |
-| `custom.greeter.backend` | `greeter.nix` | Login greeter: `noctalia` or `tuigreet`. |
-| `custom.user.shell` | `shell.nix` | Login shell: `zsh`, `bash` or `fish`. |
-| `custom.unfree.mode` | `unfree.nix` | `all`, `none`, or `selected` (with `custom.unfree.packages`). |
-| `modules.ptt.{enable,device,button}` | `ptt.nix` | Push-to-talk from an evdev button. |
-| `custom.theme.icon.{name,package}` | `modules/home/theme.nix` | GTK icon theme (Home Manager). |
+The shared Umbriel assets apply to every host importing `modules/home/umbriel.nix`. Copying a host does not create a separate set of desktop assets.
 
-## Design notes
+### Host choices
 
-### Network and DNS
+Modules with options that have no default require an explicit value from the importing host. Set the system choices in `default.nix` and Home Manager choices in `home.nix`.
 
-- DNS goes through `dnscrypt-proxy` on `127.0.0.1` / `::1` using **Anonymized DNSCrypt** (DoH disabled), requiring DNSSEC, no-log and no-filter resolvers.
-- NetworkManager's DNS handling is disabled and there is **no fallback resolver on purpose**: if the proxy is down, DNS stops instead of leaking.
-- Avahi is disabled. When enabled with `modules.homeAssistant.enable`, Home Assistant can still announce itself on the LAN through its own zeroconf (`default_config`). Its UI is restricted to this PC by an IPv4/IPv6 firewall rule blocking non-loopback TCP access to port `8123`, including on trusted interfaces; discovery and outbound cloud connections remain enabled. The restriction requires the firewall to be enabled with the `iptables` backend. If the HTTP port is changed in Home Assistant's UI, update `port` in `modules/system/homeAssistant.nix` as well.
-- `zapret` (DPI bypass) is stopped when a `proton*` / `tun*` interface comes up and started again when it goes down.
-- Passwordless `sudo` is limited to starting/stopping `zapret`.
+| Option | Choices or required values |
+| --- | --- |
+| [`custom.windowManager`](modules/system/windowManager.nix) | A list containing `hyprland`, `umbriel`, or both. |
+| [`custom.greeter.backend`](modules/system/greeter.nix) | `noctalia` or `tuigreet`; this module requires exactly one selected window manager for `tuigreet`. |
+| [`custom.user.shell`](modules/system/shell.nix) | `zsh`, `bash` or `fish`. The helpers documented above are loaded through Home Manager's Zsh module. |
+| [`custom.unfree.mode`](modules/system/unfree.nix) | `all`, `none` or `selected`; `selected` also requires a nonempty `custom.unfree.packages` list. |
+| [`custom.theme.cursor`](modules/system/theme.nix) | Theme `name` and `package`; `size` defaults to `24`. |
+| [`custom.theme.icon`](modules/home/theme.nix) | Theme `name` and `package` in Home Manager. |
+
+The flake passes `inputs`, `username` and `flakeDir` to both system and Home Manager modules.
+
+## Service behavior
+
+### Networking
+
+[network.nix](modules/system/network.nix) points the system resolver at `dnscrypt-proxy` on `127.0.0.1` and `::1`. It uses Anonymized DNSCrypt with DoH disabled and requires DNSSEC, no-log and no-filter resolvers. NetworkManager's DNS handling is disabled, and no fallback resolver is configured. System DNS resolution depends on the proxy being available.
+
+[zapret.nix](modules/system/zapret.nix) stops zapret when a `proton*` or `tun*` interface comes up and starts it again when that interface goes down. Its sudo rules allow the configured user to start and stop zapret without a password.
+
+### Home Assistant
+
+[homeAssistant.nix](modules/system/homeAssistant.nix) provides the service enabled on `wakizashi`. Local Yeelight devices are configured by IP under `modules.homeAssistant.devices`; keep LAN control enabled on the bulb and reserve its IP in the router.
+
+The desktop launcher opens `http://homeassistant.local:8123`. A firewall rule blocks non-loopback TCP access to port `8123` over IPv4 and IPv6, including traffic from trusted interfaces. The module requires an enabled firewall with the `iptables` backend.
+
+Avahi is disabled, but Home Assistant's own discovery and LAN announcements remain enabled through `default_config`. Outbound connections also remain available. If changing the HTTP port in Home Assistant's UI, update `port` in `homeAssistant.nix` and the URL in [desktopEntries.nix](modules/home/desktopEntries.nix) as well.
 
 ### Push-to-talk
 
-`modules.ptt` runs a hardened user service that reads one mouse button from `/dev/input/by-id/...` and unmutes the default audio source only while the button is held. It fails closed: the source is muted on startup, on device loss and on service stop. Manual mute changes from the sound settings are respected until the next button event. A udev rule grants the `ptt` group access to that one input device.
+[ptt.nix](modules/system/ptt.nix) runs a user service that controls the default microphone with one mouse button. Setting `modules.ptt.enable = true` requires a stable `/dev/input/by-id/...` device path and an evdev button code. A udev rule grants the `ptt` group access to that input device.
 
-### Shell scripts
-
-`modules/home/zsh.nix` syntax-checks every `scripts/*.zsh` with `zsh -n` during the build and sources the checked copies, so a parse error fails the build instead of reaching the system.
-
-## Externally managed configuration
-
-Not generated by Nix and not stored in this repository:
-
-| What | Where |
-|---|---|
-| Hyprland (Lua) | `~/.config/hypr/` |
-| Noctalia shell state | `~/.local/state/noctalia/` |
-| Umbriel `noctalia.toml` | `~/.config/umbriel/` (written by Noctalia, optionally included by `config.toml`) |
-| Kitty theme and opacity | `~/.config/kitty/themes/noctalia.conf`, `~/.config/kitty/opacity.conf` |
-| VeraCrypt container | `~/Documents/veracrypt/veracrypt` |
-
-The other Umbriel TOML files live in `assets/umbriel/` and are linked into `~/.config/umbriel/` by Home Manager. Every `.toml` except `noctalia.toml` is picked up automatically and linked with `mkOutOfStoreSymlink`, so edits in the repository apply without a rebuild.
-
-On a fresh install, restore or recreate these files before expecting the desktop to look the same.
-
-## Custom packages
-
-`pkgs/` is exposed through a flake overlay:
-
-- **helium**: Helium browser, repackaged from the upstream `.deb`. Version and hash live in `pkgs/helium.json`.
-- **yaruCustom**: Yaru icon theme with extra application icons from the `desktop-icons` flake input.
-
-## Structure
-
-```text
-hosts/      # Per-host configuration (system + hardware + home entrypoint), auto-discovered
-modules/
-  system/   # NixOS modules
-  home/     # Home Manager modules
-assets/     # Umbriel TOML, fastfetch, starship, ASCII art, images
-pkgs/       # Custom packages exposed via a flake overlay
-scripts/    # Zsh functions, syntax-checked and sourced by modules/home/zsh.nix
-justfile    # Command reference (help only)
-```
+Pressing the button unmutes the microphone; releasing it mutes it. The service also requests mute on startup, device loss and shutdown. Manual mute changes are respected until the next button event.

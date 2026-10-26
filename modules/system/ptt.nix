@@ -33,16 +33,38 @@ let
       button=${button}
 
       state_file="$RUNTIME_DIRECTORY/held"
+      source_file="$RUNTIME_DIRECTORY/source"
       applied_file="$RUNTIME_DIRECTORY/applied"
       override_file="$RUNTIME_DIRECTORY/override"
       lock_file="$RUNTIME_DIRECTORY/lock"
 
-      # Reads the *actual* current mute state of the default audio
-      # source, independent of what we think we last set. Prints
+      # Include object.serial because PipeWire can reuse a removed node's ID.
+      # Resolve the default once so mute reads/writes target the same node.
+      get_source() {
+        local out line id="" serial=""
+        out=$(wpctl inspect @DEFAULT_AUDIO_SOURCE@ 2>/dev/null) || return 1
+
+        local id_pattern='^id ([0-9]+),'
+        local serial_pattern='^[[:space:]*]*object\.serial[[:space:]]*=[[:space:]]*"([0-9]+)"$'
+
+        while IFS= read -r line; do
+          if [[ "$line" =~ $id_pattern ]]; then
+            id="''${BASH_REMATCH[1]}"
+          elif [[ "$line" =~ $serial_pattern ]]; then
+            serial="''${BASH_REMATCH[1]}"
+          fi
+        done <<< "$out"
+
+        [ -n "$id" ] && [ -n "$serial" ] || return 1
+        printf '%s %s\n' "$id" "$serial"
+      }
+
+      # Reads the *actual* current mute state of the resolved source,
+      # independent of what we think we last set. Prints
       # "0"/"1", or nothing if the source is unavailable.
       get_actual_mute() {
         local out
-        out=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null) || {
+        out=$(wpctl get-volume "$1" 2>/dev/null) || {
           printf ""
           return
         }
@@ -96,6 +118,26 @@ let
 
           local target_mute=$((1 - held))
 
+          local source last_source
+          if ! source=$(get_source); then
+            # Do not carry a manual override or mute baseline across an
+            # observed outage, even if PipeWire later reuses the IDs.
+            rm -f "$source_file" "$applied_file"
+            printf '0\n' > "$override_file"
+            return 0
+          fi
+
+          last_source=$(cat "$source_file" 2>/dev/null || printf "")
+          if [ "$source" != "$last_source" ]; then
+            # A different/recreated source is not a manual mute change.
+            # Apply the held-button state before establishing its baseline.
+            printf '0\n' > "$override_file"
+            rm -f "$applied_file"
+            printf '%s\n' "$source" > "$source_file"
+          fi
+
+          local source_id="''${source%% *}"
+
           local override
           override=$(cat "$override_file" 2>/dev/null || printf '0\n')
 
@@ -104,11 +146,11 @@ let
           if [ "$explicit" != "1" ] && [ "$override" = "1" ]; then
             # We're already respecting a manual change from the
             # sound control center. Stay out of it entirely until
-            # the next button press/release.
+            # the next button press/release or source change.
             skip=1
           elif [ "$explicit" != "1" ]; then
             local actual_mute
-            actual_mute=$(get_actual_mute)
+            actual_mute=$(get_actual_mute "$source_id")
 
             local last_applied
             last_applied=$(cat "$applied_file" 2>/dev/null || printf "")
@@ -131,7 +173,7 @@ let
             # later.
             for _ in 1 2 3 4 5; do
               if wpctl set-mute \
-                @DEFAULT_AUDIO_SOURCE@ "$target_mute" \
+                "$source_id" "$target_mute" \
                 >/dev/null 2>&1
               then
                 printf '%s\n' "$target_mute" > "$applied_file"
@@ -145,6 +187,7 @@ let
       }
 
       # Fail closed from the beginning.
+      rm -f "$source_file" "$applied_file"
       printf '0\n' > "$state_file"
       printf '0\n' > "$override_file"
       sync_state 0

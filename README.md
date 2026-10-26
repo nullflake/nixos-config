@@ -147,4 +147,4 @@ Avahi is disabled, but Home Assistant's own discovery and LAN announcements rema
 
 [ptt.nix](modules/system/ptt.nix) runs a user service that controls the default microphone with one mouse button. Setting `modules.ptt.enable = true` requires a stable `/dev/input/by-id/...` device path and an evdev button code. A udev rule grants the `ptt` group access to that input device.
 
-Pressing the button unmutes the microphone; releasing it mutes it. The service also requests mute on startup, device loss and shutdown. Manual mute changes are respected until the next button event.
+Pressing the button unmutes the microphone; releasing it mutes it. The service also requests mute on startup, device loss and shutdown. Manual mute changes on the same audio source are respected until the next button event. When the default source changes or is recreated, the watchdog clears that override and applies the held-button state to the new source on its next three-second check. An observed audio-service outage also clears the old source's mute baseline and override.

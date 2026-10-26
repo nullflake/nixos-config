@@ -1,166 +1,33 @@
+let
+  mkOpener = run: desc: options: [
+    ({ inherit run desc; } // options)
+  ];
+  rule = mime: use: { inherit mime use; };
+in
 {
   programs.yazi = {
     enable = true;
     settings = {
+      preview.wrap = "yes";
       opener = {
-        edit = [
-          {
-            run = "micro %s";
-            block = true;
-            desc = "Edit with Micro";
-          }
-        ];
-        image = [
-          {
-            run = "swayimg %s";
-            orphan = true;
-            desc = "Open with swayimg";
-          }
-        ];
-        video = [
-          {
-            run = "mpv %s";
-            orphan = true;
-            desc = "Play with mpv";
-          }
-        ];
-        audio = [
-          {
-            run = "mpv --no-video %s";
-            orphan = true;
-            desc = "Play with mpv";
-          }
-        ];
-        pdf = [
-          {
-            run = "papers %s";
-            orphan = true;
-            desc = "Open with Papers";
-          }
-        ];
+        audio = mkOpener "mpv --no-video %s" "Play with mpv" { orphan = true; };
+        edit = mkOpener "$EDITOR %s" "Edit" { block = true; };
+        enter = mkOpener "ya emit cd %s1" "Enter directory" { };
+        image = mkOpener "swayimg %s" "Open with swayimg" { orphan = true; };
+        pdf = mkOpener "papers %s" "Open with Papers" { orphan = true; };
+        video = mkOpener "mpv %s" "Play with mpv" { orphan = true; };
       };
-      open.rules = [
+      open.prepend_rules = [
+        (rule "folder/*" "enter")
         # Media types
-        {
-          mime = "image/*";
-          use = "image";
-        }
-        {
-          mime = "video/*";
-          use = "video";
-        }
-        {
-          mime = "audio/*";
-          use = "audio";
-        }
-        {
-          mime = "application/pdf";
-          use = "pdf";
-        }
-      ]
-      ++ (map
-        (ext: {
-          url = "*.${ext}";
-          use = "edit";
-        })
-        [
-          # Config / build / systemd / udev
-          "conf"
-          "cfg"
-          "ini"
-          "properties"
-          "service"
-          "rules"
-          "patch"
-          "diff"
-          "cmake"
-          # Markup / data formats
-          "json"
-          "toml"
-          "yaml"
-          "yml"
-          "md"
-          "txt"
-          "xml"
-          "csv"
-          "log"
-          "rst"
-          "tex"
-          # Shell / scripting
-          "sh"
-          "bash"
-          "zsh"
-          "fish"
-          # Programming languages
-          "nix"
-          "lua"
-          "py"
-          "rs"
-          "go"
-          "c"
-          "cpp"
-          "h"
-          "hpp"
-          "java"
-          "kt"
-          "php"
-          "rb"
-          "sql"
-          "js"
-          "ts"
-          "jsx"
-          "tsx"
-          "vue"
-          "vim"
-          "el"
-          "proto"
-          "graphql"
-          # Web
-          "css"
-          "html"
-          "htm"
-        ]
-      )
-      ++ (map
-        (name: {
-          url = "*${name}";
-          use = "edit";
-        })
-        [
-          # Extensionless / dotfile config files
-          "Makefile"
-          "Dockerfile"
-          ".dockerfile"
-          ".gitignore"
-          ".gitconfig"
-          ".gitattributes"
-          ".env"
-          ".env.*"
-          "LICENSE"
-          "README"
-          ".bashrc"
-          ".zshrc"
-          ".vimrc"
-          ".curlrc"
-          ".npmrc"
-          ".editorconfig"
-          "hosts"
-          "fstab"
-          "crontab"
-          ".desktop"
-          "CMakeLists.txt"
-        ]
-      )
-      ++ [
-        # Fallback for remaining text MIME types and empty files
-        {
-          mime = "text/*";
-          use = "edit";
-        }
-        {
-          mime = "inode/x-empty";
-          use = "edit";
-        }
+        (rule "application/pdf" "pdf")
+        (rule "audio/*" "audio")
+        (rule "image/*" "image")
+        (rule "video/*" "video")
+        # Text, structured data, and empty files
+        (rule "application/{javascript,json,shellscript,toml,xml,yaml}" "edit")
+        (rule "inode/empty" "edit")
+        (rule "text/*" "edit")
       ];
     };
     keymap.mgr.prepend_keymap = [

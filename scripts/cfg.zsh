@@ -2,13 +2,15 @@ cfg() {
   local cfg_dir="$FLAKE"
 
   case "$1" in
-    copy)
+    copy) (
+      emulate -L zsh
+      setopt pipe_fail
+
       # Concatenates every non-hidden file of the config repo into one text
       # file. Each file is preceded by a "### <path>" header (omitted in raw
       # mode) and binary/image files are replaced by a placeholder line.
       # The result is copied to the clipboard as a file URI, or as plain
       # text in raw mode.
-      local output_file="/tmp/nixos-config.txt"
       local raw=0
 
       case "$2" in
@@ -20,36 +22,56 @@ cfg() {
           ;;
       esac
 
-      find -L "$cfg_dir" -type f \
-        -not -path '*/.*' \
-        -print0 |
-        sort -z |
-        while IFS= read -r -d '' f; do
-          if (( ! raw )); then
-            echo "### ~/nixos${f#"$cfg_dir"}"
-          fi
+      local output_file="/tmp/nixos-config.txt" tmp_output
+      tmp_output=$(mktemp "${output_file}.XXXXXX") || return 1
+      trap 'rm -f -- "$tmp_output"' EXIT
+      trap 'exit 130' INT
+      trap 'exit 143' TERM
+      trap 'exit 129' HUP
 
-          case "$f" in
-            *.webp|*.png|*.jpg|*.jpeg|*.ico|*.svg)
-              echo "[binary/image file, content omitted]"
-              ;;
-            *)
-              cat "$f"
-              ;;
-          esac
+      # Check every read/write; only publish a complete output file.
+      if ! (
+        find -L "$cfg_dir" -type f -not -path '*/.*' -print0 |
+          sort -z |
+          while IFS= read -r -d '' f; do
+            if (( ! raw )); then
+              printf '### ~/nixos%s\n' "${f#"$cfg_dir"}" || exit 1
+            fi
 
-          echo
-        done > "$output_file"
+            case "$f" in
+              *.webp|*.png|*.jpg|*.jpeg|*.ico|*.svg)
+                printf '%s\n' '[binary/image file, content omitted]' || exit 1
+                ;;
+              *)
+                command cat -- "$f" || exit 1
+                ;;
+            esac
+
+            printf '\n' || exit 1
+          done
+      ) > "$tmp_output"; then
+        print -u2 -- "cfg copy: could not collect all files; clipboard unchanged."
+        return 1
+      fi
+      mv -fT -- "$tmp_output" "$output_file" || return 1
 
       if (( raw )); then
-        wl-copy -t text/plain < "$output_file"
+        wl-copy -t text/plain < "$output_file" || {
+          local copy_rc=$?
+          print -u2 -- "cfg copy: wl-copy failed (exit $copy_rc)."
+          return "$copy_rc"
+        }
         echo "Copied to clipboard as text: $output_file"
       else
         printf 'file://%s\n' "$output_file" |
-          wl-copy -t text/uri-list
+          wl-copy -t text/uri-list || {
+            local copy_rc=$?
+            print -u2 -- "cfg copy: wl-copy failed (exit $copy_rc)."
+            return "$copy_rc"
+          }
         echo "Copied to clipboard as file: $output_file"
       fi
-      ;;
+    ) ;;
 
     discard)
       echo "This will discard ALL local changes (reset --hard + clean -fd)."

@@ -1,29 +1,50 @@
 umb() {
   local cfg_dir="$HOME/.config/umbriel"
-  local output_file="/tmp/umbriel-config.txt"
 
   case "$1" in
-    copy)
-      find -L "$cfg_dir" -type f \
-        -name '*.toml' \
-        -print0 |
-        sort -z |
-        while IFS= read -r -d '' f; do
-          local display_name="~/.config/umbriel${f#$cfg_dir}"
+    copy) (
+      emulate -L zsh
+      setopt pipe_fail
 
-          echo "### $display_name"
-          cat "$f"
-          echo
-        done > "$output_file"
+      local output_file="/tmp/umbriel-config.txt" tmp_output
+      tmp_output=$(mktemp "${output_file}.XXXXXX") || return 1
+      trap 'rm -f -- "$tmp_output"' EXIT
+      trap 'exit 130' INT
+      trap 'exit 143' TERM
+      trap 'exit 129' HUP
+
+      # Check every read/write; only publish a complete output file.
+      if ! (
+        find -L "$cfg_dir" -type f -name '*.toml' -print0 |
+          sort -z |
+          while IFS= read -r -d '' f; do
+            printf '### ~/.config/umbriel%s\n' "${f#"$cfg_dir"}" || exit 1
+            command cat -- "$f" || exit 1
+            printf '\n' || exit 1
+          done
+      ) > "$tmp_output"; then
+        print -u2 -- "umb copy: could not collect all files; clipboard unchanged."
+        return 1
+      fi
+      mv -fT -- "$tmp_output" "$output_file" || return 1
 
       if [[ "$2" == "raw" ]]; then
-        wl-copy -t text/plain < "$output_file"
+        wl-copy -t text/plain < "$output_file" || {
+          local copy_rc=$?
+          print -u2 -- "umb copy: wl-copy failed (exit $copy_rc)."
+          return "$copy_rc"
+        }
         echo "Copied to clipboard as text: $output_file"
       else
-        wl-copy -t text/uri-list "file://$output_file"
+        printf 'file://%s\n' "$output_file" |
+          wl-copy -t text/uri-list || {
+            local copy_rc=$?
+            print -u2 -- "umb copy: wl-copy failed (exit $copy_rc)."
+            return "$copy_rc"
+          }
         echo "Copied to clipboard as file: $output_file"
       fi
-      ;;
+    ) ;;
 
     edit)
       yazi "$cfg_dir"

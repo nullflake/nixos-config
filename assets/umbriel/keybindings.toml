@@ -71,7 +71,27 @@
 # capture
 "Mod+S"       = "spawn:noctalia msg screenshot-region"
 "Mod+R"       = "spawn:noctalia msg plugin noctalia/screen_recorder:service all toggle"
-"Mod+O"       = "spawn:sh -c 'grim -g \"$(slurp)\" - | tesseract stdin stdout -l tur+eng | wl-copy && notify-send \"OCR\" \"Copied to clipboard\"'"
+
+"Mod+O"       = '''spawn:bash -o pipefail -c '
+    region=$(slurp) || exit 1
+    [[ -n "$region" ]] || exit 1
+    # Buffer OCR output so capture or recognition failure preserves the clipboard.
+    text=$(grim -g "$region" - | tesseract stdin stdout -l tur+eng) || {
+        notify-send "OCR" "Screen capture or text recognition failed"
+        exit 1
+    }
+    [[ "$text" =~ [^[:space:]] ]] || {
+        notify-send "OCR" "No text found"
+        exit 0
+    }
+    printf "%s" "$text" | wl-copy --type text/plain || {
+        notify-send "OCR" "Could not copy text to clipboard"
+        exit 1
+    }
+    notify-send "OCR" "Copied to clipboard"
+'
+'''
+
 "Mod+C"       = "spawn:hyprpicker -a"
 "Mod+Shift+C" = "spawn:noctalia msg panel-toggle oldirtty/color_picker:panel"
 
@@ -89,6 +109,7 @@
 "XF86AudioNext" = "spawn:playerctl next"
 "XF86AudioPrev" = "spawn:playerctl previous"
 
-# brightness (laptop backlight; requires brightnessctl, not installed by this config)
+# brightness
+#   Display backlight; requires brightnessctl (not installed).
 "XF86MonBrightnessUp"   = "spawn:brightnessctl set 5%+"
 "XF86MonBrightnessDown" = "spawn:brightnessctl set 5%-"

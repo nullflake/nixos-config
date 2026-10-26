@@ -230,6 +230,14 @@ let
           # from pipeline/subshell semantics.
           while read -r line; do
             case "$line" in
+              *"SYN_DROPPED"*)
+                # Queue overflow may lose a release event and leave the mic open.
+                # Exit through mute cleanup; systemd restarts with a fresh reader
+                # and released state. If still held, release and press again.
+                printf '%s\n' 'PTT: input events lost; restarting muted' >&2
+                exit 1
+                ;;
+
               *"(EV_KEY)"*"code $button ("*"value 1")
                 sync_state 1
                 ;;

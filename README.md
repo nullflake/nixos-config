@@ -130,6 +130,10 @@ The flake passes `inputs`, `username` and `flakeDir` to both system and Home Man
 
 ## Service behavior
 
+### Steam
+
+[steam.nix](modules/system/steam.nix) adds `-gamepadui -windowed` to the Steam command so a new client starts in windowed Big Picture mode, including when launched by a game's desktop shortcut. The [desktop entry](modules/home/desktopEntries.nix) passes URLs through with `%U`.
+
 ### Networking
 
 [network.nix](modules/system/network.nix) points the system resolver at `dnscrypt-proxy` on `127.0.0.1` and `::1`. It uses Anonymized DNSCrypt with DoH disabled and requires DNSSEC, no-log and no-filter resolvers. NetworkManager's DNS handling is disabled, and no fallback resolver is configured. System DNS resolution depends on the proxy being available.

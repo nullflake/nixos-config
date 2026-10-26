@@ -59,7 +59,7 @@
       name = "Steam";
       genericName = "PC Gaming Platform";
       comment = "Application for managing and playing games on Steam";
-      exec = "steam -gamepadui -windowed";
+      exec = "steam %U";
       icon = "steam";
       categories = [
         "Network"

@@ -163,7 +163,7 @@
         }
       ];
     };
-    keymap.manager.prepend_keymap = [
+    keymap.mgr.prepend_keymap = [
       {
         on = [ "." ];
         run = "hidden toggle";

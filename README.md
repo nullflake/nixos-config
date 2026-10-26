@@ -49,6 +49,7 @@ After activation, open a new Zsh session to use the shell functions below.
 | `nixctl update` | Update dependencies, check the configuration, then build and apply it. |
 | `nixctl rollback` | Activate the previous system generation. |
 | `cfg push` | Stage all changes, commit, rebase on the upstream branch if configured, and push. |
+| `network` | Show public IP, location, DNS resolver, active interfaces and VPN status. |
 
 `nixctl update` updates `flake.lock`, tries to update the Helium pin in `pkgs/helium.json`, and runs `nix flake check --no-build` before calling `nh os switch`.
 

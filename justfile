@@ -42,7 +42,7 @@ cfg:
 [group('network')]
 network:
     @echo "{{BOLD + CYAN}}Network, VPN & Zapret{{NORMAL}}"
-    @echo "network                  : Display public IP, geo location, and active DNS resolver"
+    @echo "network                  : Display public IP, location, DNS resolver, active interfaces and VPN status"
     @echo "vpn up [COUNTRY]         : Connect to ProtonVPN (default: CH)"
     @echo "vpn down                 : Disconnect ProtonVPN"
     @echo "vpn status               : Show ProtonVPN connection status"

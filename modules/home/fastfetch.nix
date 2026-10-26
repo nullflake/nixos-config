@@ -1,4 +1,3 @@
-{ ... }:
 let
   /*
     Copied into the store on its own, so the logo path is tracked as a

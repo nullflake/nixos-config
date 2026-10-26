@@ -55,7 +55,7 @@ wm:
     @echo "{{BOLD + MAGENTA}}Window Managers (Hyprland / Umbriel){{NORMAL}}"
     @echo "hypr edit                : Open Hyprland config directory in Yazi"
     @echo "hypr tree                : Show Hyprland config tree"
-    @echo "hypr copy                : Copy all Hyprland *.lua files to clipboard"
+    @echo "hypr copy [raw]          : Copy Hyprland *.lua files to clipboard (file URI or text)"
     @echo "hypr reload              : Reload Hyprland configuration"
     @echo "hypr clients             : List active Hyprland clients"
     @echo "umb edit                 : Open Umbriel config directory in Yazi"

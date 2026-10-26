@@ -39,8 +39,10 @@
     GBM_BACKEND = "nvidia-drm";
     # nvidia-vaapi-driver backend (direct is already the default)
     NVD_BACKEND = "direct";
-    # G-Sync/VRR for Xwayland OpenGL/Vulkan apps (games). Wayland-native
-    # VRR is controlled by the compositor (Hyprland misc.vrr), not these.
+    /*
+      G-Sync/VRR for Xwayland OpenGL/Vulkan apps (games). Wayland-native
+      VRR is controlled by the compositor (Hyprland misc.vrr), not these.
+    */
     __GL_GSYNC_ALLOWED = "1";
     __GL_VRR_ALLOWED = "1";
   };

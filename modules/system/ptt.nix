@@ -186,7 +186,7 @@ let
         ) 200>"$lock_file"
       }
 
-      # Fail closed from the beginning.
+      # Start with the button released and request mute.
       rm -f "$source_file" "$applied_file"
       printf '0\n' > "$state_file"
       printf '0\n' > "$override_file"
@@ -205,10 +205,9 @@ let
 
       watchdog_pid=$!
 
-      # Runs on every exit path. Must never block: during shutdown
-      # PipeWire/WirePlumber may already be gone, so no flock, no
-      # retry loop, and a hard 1 second cap on wpctl. ExecStopPost
-      # additionally guarantees the muted state.
+      # Attempt mute on shell exit without waiting for the state lock.
+      # Give wpctl a one-second timeout; ExecStopPost also attempts mute
+      # when the process exits unexpectedly or this trap cannot run.
       cleanup() {
         trap - EXIT INT TERM
         kill "$watchdog_pid" 2>/dev/null || true
@@ -216,16 +215,14 @@ let
           >/dev/null 2>&1 || true
       }
 
-      # A signal must actually terminate the script (the EXIT trap
-      # then runs cleanup). Previously the trap ran cleanup but the
-      # script kept looping until systemd timed out and SIGKILLed it.
+      # Exit on INT/TERM so the EXIT trap runs cleanup instead of
+      # returning to the event loop.
       trap 'exit 0' INT TERM
       trap cleanup EXIT
 
       while true; do
         if [ -e "$device" ]; then
-          # A newly appeared/reappeared input device always starts
-          # in the safe state.
+          # Treat a new/reconnected input device as released and request mute.
           sync_state 0
 
           # evtest terminates when the device disappears or fails.
@@ -245,8 +242,7 @@ let
             stdbuf -oL evtest "$device" 2>/dev/null
           )
 
-          # Device disappeared or evtest terminated:
-          # never leave the microphone unmuted.
+          # Request mute after input-device loss or an evtest failure.
           sync_state 0
         fi
 
@@ -329,12 +325,11 @@ in
         ExecStart = lib.getExe pttScript;
 
         /*
-          Fail closed when systemd stops the service for any reason.
-          Capped with timeout so a dead PipeWire can't stall shutdown.
+          Request mute after service exit, including failed starts.
+          Use a one-second timeout because PipeWire may be unavailable.
         */
         ExecStopPost = "-${pkgs.coreutils}/bin/timeout 1 ${wpctl} set-mute @DEFAULT_AUDIO_SOURCE@ 1";
 
-        # Hard upper bound for stopping: after this, SIGKILL.
         TimeoutStopSec = "3s";
 
         Restart = "on-failure";

@@ -2,7 +2,7 @@
 {
   xdg.portal = {
     enable = true;
-    xdgOpenUsePortal = true; # Force apps to use XDG portals instead of standalone xdg-open scripts
+    xdgOpenUsePortal = true; # Make xdg-open use the portal
 
     extraPortals = [
       pkgs.xdg-desktop-portal-gtk # Shared fallback backend for portals not handled elsewhere

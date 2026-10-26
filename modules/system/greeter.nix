@@ -21,20 +21,19 @@
   };
 
   /*
-    Don't read config in a top-level let here — this option is defined
-    by this same module, so early evaluation causes infinite recursion.
-    mkIf/mkMerge are lazy, so reading config.custom inside them is safe.
+    mkIf delays backend conditions until individual option definitions
+    are evaluated; mkMerge combines the backend definitions.
   */
   config = lib.mkMerge [
     (lib.mkIf (config.custom.greeter.backend == "tuigreet") {
       /*
-        tuigreet has no session picker: it always runs a single fixed
-        command, so exactly one window manager must be selected.
+        This module derives tuigreet's --cmd default from one selected
+        window manager. tuigreet itself also supports session selection.
       */
       assertions = [
         {
           assertion = builtins.length config.custom.windowManager == 1;
-          message = "tuigreet has no session picker; custom.windowManager must contain exactly one entry when using the tuigreet backend.";
+          message = "The tuigreet backend derives --cmd from one window manager; custom.windowManager must contain exactly one entry.";
         }
       ];
 

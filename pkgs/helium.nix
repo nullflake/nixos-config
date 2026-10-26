@@ -170,7 +170,6 @@ in
 stdenv.mkDerivation {
   inherit pname version src;
 
-  # Modern Nix practices
   __structuredAttrs = true;
   strictDeps = true;
 

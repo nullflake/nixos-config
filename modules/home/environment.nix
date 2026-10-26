@@ -5,8 +5,8 @@
     VISUAL = "micro";
     MICRO_TRUECOLOR = "1";
     /*
-      scripts/cfg.zsh and nixctl.zsh run `git -C "$FLAKE" ...` against
-      this path, so it must be the real checkout, not the store copy.
+      cfg.zsh uses this checkout for Git operations; nixctl.zsh updates
+      flake.lock here. Both need the writable checkout at runtime.
     */
     FLAKE = flakeDir;
     NH_FLAKE = flakeDir;

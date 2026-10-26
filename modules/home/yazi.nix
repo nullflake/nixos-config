@@ -152,7 +152,7 @@
         ]
       )
       ++ [
-        # Fallback: any remaining text mime, or empty/unrecognized files
+        # Fallback for remaining text MIME types and empty files
         {
           mime = "text/*";
           use = "edit";

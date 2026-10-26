@@ -2,11 +2,11 @@
   hardware.bluetooth = {
     enable = true;
     settings.General = {
-      # Allows simultaneous media audio and microphone usage on headsets
+      # Enable Multi Profile Specification support across multiple devices
       MultiProfile = "multiple";
-      # Faster reconnect times for sleeping wireless devices
+      # Keep supported adapters fast-connectable, at increased power use
       FastConnectable = true;
-      # Enables LE privacy features to prevent local tracking
+      # Use LE device privacy mode with private addresses
       Privacy = "device";
     };
   };

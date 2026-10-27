@@ -9,6 +9,7 @@ in
     ./hardware.nix
 
     ../../modules/system/audio.nix
+    ../../modules/system/backup.nix
     ../../modules/system/bluetooth.nix
     ../../modules/system/boot.nix
     ../../modules/system/ddcutil.nix
@@ -55,6 +56,18 @@ in
       };
 
       modules = {
+        backup = {
+          enable = true;
+          label = "Backup";
+          paths = [
+            "Documents/veracrypt/veracrypt"
+            "Documents/obsidian"
+            ".local/state/noctalia/settings.toml"
+          ];
+          unmountedPaths = [ "Documents/veracrypt/vault" ];
+          containerPaths = [ "Documents/veracrypt/veracrypt" ];
+        };
+
         homeAssistant = {
           enable = true;
 

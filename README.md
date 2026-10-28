@@ -136,7 +136,7 @@ The flake passes `inputs`, `username` and `flakeDir` to both system and Home Man
 
 ### Networking
 
-[network.nix](modules/system/network.nix) points the system resolver at `dnscrypt-proxy` on `127.0.0.1` and `::1`. It uses Anonymized DNSCrypt with DoH disabled and requires DNSSEC, no-log and no-filter resolvers. NetworkManager's DNS handling is disabled, and no fallback resolver is configured. System DNS resolution depends on the proxy being available.
+[network.nix](modules/system/network.nix) points the system resolver at `dnscrypt-proxy` on `127.0.0.1` and `::1`. It uses two selected dnscry.pt resolvers declaring DNSSEC, no logging and no filtering, each with a fixed relay operated by a different provider. DoH and direct certificate fallback are disabled; PQDNSCrypt is temporarily disabled due to large-response failures with version 2.1.18. NetworkManager's DNS handling is disabled, and no fallback resolver is configured. System DNS resolution depends on the proxy being available.
 
 [zapret.nix](modules/system/zapret.nix) stops zapret when a `proton*` or `tun*` interface comes up and starts it again when that interface goes down. Its sudo rules allow the configured user to start and stop zapret without a password.
 

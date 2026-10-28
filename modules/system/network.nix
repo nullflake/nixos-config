@@ -4,8 +4,8 @@
 
   /*
     Encrypted DNS to bypass ISP-level DNS blocking
-    No fallback resolver on purpose. If this service dies, DNS stops
-    entirely instead of leaking queries.
+    No fallback in the system resolver list: if the proxy stops,
+    system DNS resolution fails instead of switching to plaintext DNS.
   */
   networking.nameservers = [
     "127.0.0.1"
@@ -30,9 +30,16 @@
         "[::1]:53"
       ];
       ipv6_servers = false;
-      require_dnssec = true;
-      require_nolog = true;
-      require_nofilter = true;
+
+      /*
+        Explicit names bypass require_* filters. Both selected stamps
+        declare DNSSEC, no logging and no filtering; check these properties
+        when changing the selection.
+      */
+      server_names = [
+        "dnscry.pt-paris-ipv4"
+        "dnscry.pt-oradea-ipv4"
+      ];
 
       /*
         DNSCrypt only, no DoH: Anonymized DNSCrypt (below) only works
@@ -41,29 +48,35 @@
       */
       dnscrypt_servers = true;
       doh_servers = false;
+      # Work around the PQ large-response failures observed with proxy 2.1.18.
+      pqdnscrypt = false;
 
-      /*
-        Ephemeral keys per query + no TLS session resumption, to reduce
-        the fingerprint a passive observer can correlate across queries.
-      */
+      # Use a fresh key pair for each DNSCrypt query to reduce linkability.
       dnscrypt_ephemeral_keys = true;
+      # Disable TLS session resumption for HTTPS resolver/relay list downloads.
       tls_disable_session_tickets = true;
 
       /*
         Anonymized DNSCrypt: route queries through a relay so the
         resolver itself never sees client IP + query together.
-        Wildcard route: let the proxy pick a working relay for whatever
-        server it ends up using, instead of hardcoding a relay name
-        that may go stale or unreliable when the resolvers list updates.
+        Only dnscry.pt resolvers are selected. Their fixed relays are run
+        by Frank Denis and CryptoStorm, respectively, keeping the two
+        roles with different operators. No wildcard relay selection.
       */
       anonymized_dns = {
         routes = [
           {
-            server_name = "*";
-            via = [ "*" ];
+            server_name = "dnscry.pt-paris-ipv4";
+            via = [ "anon-kama" ];
+          }
+          {
+            server_name = "dnscry.pt-oradea-ipv4";
+            via = [ "anon-cs-london" ];
           }
         ];
         skip_incompatible = true;
+        # Keep certificate retrieval behind the relay as well.
+        direct_cert_fallback = false;
       };
 
       sources.public-resolvers = {

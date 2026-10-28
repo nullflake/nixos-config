@@ -8,6 +8,10 @@
   nix.optimise.dates = [ "weekly" ];
 
   nix.settings = {
+    # Limit concurrent builds and per-build parallelism to reduce memory pressure.
+    max-jobs = 4;
+    cores = 4;
+
     trusted-users = [
       "root"
     ];

@@ -42,7 +42,6 @@ in
       custom = {
         greeter.backend = "noctalia";
         unfree.mode = "all";
-        user.shell = "zsh";
         windowManager = [
           "umbriel"
           "hyprland"

@@ -36,8 +36,6 @@ sudo nixos-rebuild switch --flake ~/nixos#wakizashi
 
 This also applies the user's Home Manager configuration. The Noctalia binary cache in [nix.nix](modules/system/nix.nix) takes effect after activation, so the first build may compile Noctalia from source.
 
-After activation, open a new Zsh session to use the shell functions below.
-
 ## Everyday use
 
 | Command | Effect |
@@ -121,7 +119,6 @@ Modules with options that have no default require an explicit value from the imp
 | --- | --- |
 | [`custom.windowManager`](modules/system/windowManager.nix) | A list containing `hyprland`, `umbriel`, or both. |
 | [`custom.greeter.backend`](modules/system/greeter.nix) | `noctalia` or `tuigreet`; this module requires exactly one selected window manager for `tuigreet`. |
-| [`custom.user.shell`](modules/system/shell.nix) | `zsh`, `bash` or `fish`. The helpers documented above are loaded through Home Manager's Zsh module. |
 | [`custom.unfree.mode`](modules/system/unfree.nix) | `all`, `none` or `selected`; `selected` also requires a nonempty `custom.unfree.packages` list. |
 | [`custom.theme.cursor`](modules/system/theme.nix) | Theme `name` and `package`; `size` defaults to `24`. |
 | [`custom.theme.icon`](modules/home/theme.nix) | Theme `name` and `package` in Home Manager. |

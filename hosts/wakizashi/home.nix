@@ -1,4 +1,4 @@
-{ pkgs, username, ... }:
+{ username, ... }:
 {
   imports = [
     ../../modules/home/desktopEntries.nix
@@ -25,14 +25,6 @@
 
   # User identity
   home.username = username;
-
-  # Home Configuration
-  custom = {
-    theme.icon = {
-      name = "Yaru-Custom";
-      package = pkgs.yaruCustom;
-    };
-  };
 
   # Home Manager settings
   programs.home-manager.enable = true;

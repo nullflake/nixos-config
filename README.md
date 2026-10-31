@@ -121,7 +121,6 @@ Modules with options that have no default require an explicit value from the imp
 | [`custom.greeter.backend`](modules/system/greeter.nix) | `noctalia` or `tuigreet`; this module requires exactly one selected window manager for `tuigreet`. |
 | [`custom.unfree.mode`](modules/system/unfree.nix) | `all`, `none` or `selected`; `selected` also requires a nonempty `custom.unfree.packages` list. |
 | [`custom.theme.cursor`](modules/system/theme.nix) | Theme `name` and `package`; `size` defaults to `24`. |
-| [`custom.theme.icon`](modules/home/theme.nix) | Theme `name` and `package` in Home Manager. |
 
 The flake passes `inputs`, `username` and `flakeDir` to both system and Home Manager modules.
 

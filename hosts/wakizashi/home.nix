@@ -1,6 +1,7 @@
 { username, ... }:
 {
   imports = [
+    ../../modules/home/aliases.nix
     ../../modules/home/desktopEntries.nix
     ../../modules/home/environment.nix
     ../../modules/home/eza.nix

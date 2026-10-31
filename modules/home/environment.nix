@@ -11,11 +11,4 @@
     FLAKE = flakeDir;
     NH_FLAKE = flakeDir;
   };
-
-  home.shellAliases = {
-    cat = "bat --paging=never";
-    grep = "rg";
-    ns = "nixctl switch";
-
-  };
 }

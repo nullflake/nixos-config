@@ -11,6 +11,13 @@
       "50000"
     ];
     params = [
+      /*
+        Let Googlevideo HTTPS bypass desync: fake packets break its TLS streams.
+        The first matching profile has no desync action; the next handles other traffic.
+      */
+      "--filter-tcp=443"
+      "--hostlist-domains=googlevideo.com"
+      "--new"
       "--dpi-desync=fake"
       "--dpi-desync-ttl=8"
     ];

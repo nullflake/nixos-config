@@ -1,11 +1,11 @@
 # Noctalia keys saved GUI selections and the thumbnail cache by this ID.
 id = "nullflake/youtube-search"
 name = "YouTube"
-version = "1.3.0"
+version = "1.7.3"
 plugin_api = 24
 author = "nullflake"
 icon = "brand-youtube"
-description = "Browse videos and channels through Invidious, then play with mpv."
+description = "Browse videos and channels, save videos and favorite channels, and view local playback history."
 dependencies = ["yt-dlp", "mpv"]
 
 # The plugin must also be enabled; see modules/home/noctalia.nix.

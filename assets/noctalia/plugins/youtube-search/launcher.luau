@@ -20,6 +20,7 @@ local browser = (function()
     local PAGE_TTL_MS = 60000
     local MAX_IMAGE_BYTES = 1024 * 1024
     local dataDir = noctalia.pluginDataDir()
+    local resumeDir = dataDir and (dataDir .. "/resume") or nil
     local cacheDir = dataDir and (dataDir .. "/thumbnails") or nil
     if cacheDir and not noctalia.mkdirAll(cacheDir) then cacheDir = nil end
 
@@ -38,9 +39,200 @@ local browser = (function()
         end
         return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
     end
+    local libraryPath = dataDir and (dataDir .. "/library.json") or nil
+    local library = {version = 1, later = {}, history = {}, favorites = {}, channelPlays = {}}
+    local libraryError = nil
+    local LIST_PAGE_SIZE, HISTORY_LIMIT = 25, 500
+    local function validRecords(records, channel)
+        if type(records) ~= "table" then return false end
+        local seen, count = {}, 0
+        for index, item in pairs(records) do
+            if type(index) ~= "number" or index < 1 or index > #records or index % 1 ~= 0 or type(item) ~= "table"
+                or not validId(item.id, channel) or type(item.title) ~= "string"
+                or (item.channelId ~= nil and not validId(item.channelId, true))
+                or type(item.subtitle) ~= "string" or seen[item.id] then return false end
+            seen[item.id], count = true, count + 1
+        end
+        return count == #records
+    end
+    local function validPlays(plays)
+        if type(plays) ~= "table" then return false end
+        for id, count in pairs(plays) do
+            if not validId(id, true) or type(count) ~= "number" or count < 0
+                or count >= math.huge or count % 1 ~= 0 then return false end
+        end
+        return true
+    end
+    if libraryPath and noctalia.fileExists(libraryPath) then
+        local body = noctalia.readFile(libraryPath)
+        local ok, saved = pcall(noctalia.json.decode, body or "")
+        if ok and type(saved) == "table" and saved.version == 1
+            and validRecords(saved.later) and validRecords(saved.history)
+            and (saved.favorites == nil or validRecords(saved.favorites, true))
+            and (saved.channelPlays == nil or validPlays(saved.channelPlays)) then
+            -- Existing libraries acquire favorites without rewriting their video records.
+            saved.favorites = saved.favorites or {}
+            saved.channelPlays = saved.channelPlays or {}
+            library = saved
+        else
+            -- Preserve unreadable or incompatible data instead of overwriting it.
+            libraryError = "Could not read the YouTube library; existing data was preserved"
+        end
+    end
+    local function saveLibrary(later, history, favorites, channelPlays)
+        if libraryError then noctalia.notifyError(libraryError); return false end
+        if not libraryPath or not noctalia.mkdirAll(dataDir) then
+            noctalia.notifyError("YouTube library storage is unavailable"); return false
+        end
+        local updated = {version = 1, later = later, history = history, favorites = favorites or library.favorites,
+            channelPlays = channelPlays or library.channelPlays}
+        local ok, body = pcall(noctalia.json.encode, updated)
+        local temporary = libraryPath .. ".part"
+        if ok and type(body) == "string" and noctalia.writeFile(temporary, body)
+            and noctalia.renameFile(temporary, libraryPath) then
+            library = updated
+            return true
+        end
+        noctalia.removeFile(temporary)
+        noctalia.notifyError("Could not save the YouTube library")
+        return false
+    end
+    local function contains(records, id)
+        for _, item in ipairs(records) do if item.id == id then return true end end
+        return false
+    end
+    local function displayTitle(item)
+        local saved = item.destination and contains(library.favorites, item.destination.id)
+            or contains(library.later, item.id)
+        return saved and ("☆ " .. item.title) or item.title
+    end
+    local function without(records, id)
+        local result = {}
+        for _, item in ipairs(records) do if item.id ~= id then table.insert(result, item) end end
+        return result
+    end
+    local function record(item)
+        return {id = item.id, title = item.title, subtitle = item.subtitle, channelId = item.channelId}
+    end
+    local function enrichRecord(item)
+        local result = record(item)
+        local function genericTitle(title)
+            return title == "" or title == result.id or title == "YouTube · " .. result.id or title == "Untitled video"
+        end
+        local function genericSubtitle(subtitle)
+            return subtitle == "" or subtitle == "Video" or subtitle == "Added from URL"
+        end
+        for _, records in ipairs({library.history, library.later}) do
+            for _, known in ipairs(records) do
+                if known.id == result.id then
+                    if genericTitle(result.title) and not genericTitle(known.title) then result.title = known.title end
+                    if genericSubtitle(result.subtitle) and not genericSubtitle(known.subtitle) then
+                        result.subtitle = known.subtitle
+                    end
+                    result.channelId = result.channelId or known.channelId
+                end
+            end
+        end
+        return result
+    end
+    local function playbackProgress(id)
+        if not resumeDir or not validId(id, false) then return nil end
+        local path = resumeDir .. "/" .. id .. ".json"
+        if not noctalia.fileExists(path) then return nil end
+        local ok, saved = pcall(noctalia.json.decode, noctalia.readFile(path) or "")
+        if ok and type(saved) == "table" and saved.id == id and type(saved.position) == "number"
+            and saved.position >= 0 and saved.position < math.huge and type(saved.length) == "number"
+            and saved.length >= 0 and saved.length < math.huge then
+            return duration(saved.position) .. (saved.length > 0 and (" / " .. duration(saved.length)
+                .. " · " .. math.min(100, math.floor(saved.position / saved.length * 100)) .. "%") or "")
+        end
+        return nil
+    end
+    local function historyVideos()
+        local records = {}
+        for _, known in ipairs(library.history) do
+            local item = record(known)
+            item.progress = playbackProgress(item.id)
+            table.insert(records, item)
+        end
+        return records
+    end
+    local function sortedFavorites()
+        local favorites = {}
+        for _, item in ipairs(library.favorites) do table.insert(favorites, item) end
+        table.sort(favorites, function(a, b)
+            local ac, bc = library.channelPlays[a.id] or 0, library.channelPlays[b.id] or 0
+            if ac ~= bc then return ac > bc end
+            if a.title ~= b.title then return a.title < b.title end
+            return a.id < b.id
+        end)
+        return favorites
+    end
+    local function toggleLater(item)
+        local later = without(library.later, item.id)
+        if not contains(library.later, item.id) then table.insert(later, 1, enrichRecord(item)) end
+        return saveLibrary(later, library.history)
+    end
+    local function startTime(url)
+        local value = url:match("[?&#]t=([^&#]+)") or url:match("[?&#]start=([^&#]+)")
+        if not value then return nil end
+        if value:match("^%d+$") then return tonumber(value) end
+        local hours, minutes, seconds = value:match("^(%d+)h(%d+)m(%d+)s$")
+        if hours then return tonumber(hours) * 3600 + tonumber(minutes) * 60 + tonumber(seconds) end
+        hours, minutes = value:match("^(%d+)h(%d+)m$")
+        if hours then return tonumber(hours) * 3600 + tonumber(minutes) * 60 end
+        hours, seconds = value:match("^(%d+)h(%d+)s$")
+        if hours then return tonumber(hours) * 3600 + tonumber(seconds) end
+        minutes, seconds = value:match("^(%d+)m(%d+)s$")
+        if minutes then return tonumber(minutes) * 60 + tonumber(seconds) end
+        hours = value:match("^(%d+)h$")
+        if hours then return tonumber(hours) * 3600 end
+        minutes = value:match("^(%d+)m$")
+        if minutes then return tonumber(minutes) * 60 end
+        seconds = value:match("^(%d+)s$")
+        return seconds and tonumber(seconds) or nil
+    end
+    local function play(item, url)
+        if not noctalia.commandExists("mpv") then noctalia.notifyError("mpv is not installed"); return end
+        if item then item = enrichRecord(item) end
+        local args = {"mpv", "--profile=youtube"}
+        if item then
+            -- Resume files are keyed by the input URL, so aliases must share one URL.
+            local start = startTime(url)
+            if start and start < math.huge then
+                table.insert(args, "--start=" .. tostring(start))
+                table.insert(args, "--resume-playback=no")
+            end
+            url = "https://www.youtube.com/watch?v=" .. item.id
+        end
+        table.insert(args, "--")
+        table.insert(args, url)
+        if not noctalia.runAsync(args) then
+            noctalia.notifyError("Could not start mpv"); return
+        end
+        if item then
+            local history = without(library.history, item.id)
+            table.insert(history, 1, record(item))
+            while #history > HISTORY_LIMIT do table.remove(history) end
+            local plays = {}
+            for id, count in pairs(library.channelPlays) do plays[id] = count end
+            if item.channelId then plays[item.channelId] = (plays[item.channelId] or 0) + 1 end
+            local later = {}
+            for _, known in ipairs(library.later) do
+                table.insert(later, known.id == item.id and record(item) or known)
+            end
+            saveLibrary(later, history, nil, plays)
+        end
+    end
     local function route(page)
         if not page.label then
-            local label = page.kind == "channel" and (page.name .. " · Videos · Page " .. page.number)
+            local label = page.kind == "video" and ("Video · " .. page.item.title .. " · " .. page.item.id)
+                or page.kind == "later" and ("Watch later · Page " .. page.number)
+                or page.kind == "history" and ("Watch history · Page " .. page.number)
+                or page.kind == "favorites" and ("Favorite channels · Page " .. page.number)
+                or page.kind == "feed" and ("Latest from favorites · Page " .. page.number)
+                or page.kind == "clear" and "Confirm clear history"
+                or page.kind == "channel" and (page.name .. " · Videos · Page " .. page.number)
                 or (page.number == 1 and page.text or (page.text .. " · Search page " .. page.number))
             local base, suffix = label, 1
             while routes[label] and routes[label] ~= page do
@@ -54,6 +246,16 @@ local browser = (function()
     end
     local function navigation(title, page, glyph)
         return {id = "navigation:" .. title, title = title, glyph = glyph or "arrow-left", query = route(page)}
+    end
+    local function videoRoute(item, page)
+        page.details = page.details or {}
+        local detail = page.details[item.id] or {kind = "video", origin = page}
+        detail.item, page.details[item.id] = item, detail
+        return route(detail)
+    end
+    local function favoriteAction(page)
+        return {id = "toggle-channel", title = contains(library.favorites, page.id)
+            and "Remove from favorite channels" or "Add to favorite channels", glyph = "star"}
     end
     --[[
     This instance redirects images to wsrv.nl. Address that approved proxy directly
@@ -109,6 +311,8 @@ local browser = (function()
                         if item.liveNow then table.insert(details, "LIVE") end
                         table.insert(items, {
                             key = key, id = item.videoId, title = title ~= "" and title or "Untitled video",
+                            channelId = validId(item.authorId, true) and item.authorId
+                                or (page.kind == "channel" and page.id or nil),
                             subtitle = table.concat(details, " · "), glyph = "player-play",
                             image = proxyImage("https://img.youtube.com/vi/" .. item.videoId .. "/hqdefault.jpg"),
                         })
@@ -123,26 +327,153 @@ local browser = (function()
         if not page then return end
         local rows = {}
         allowed = {}
+        if page.kind == "channel" then table.insert(rows, favoriteAction(page)) end
+        if page.groups then
+            page.items = {}
+            for _, group in ipairs(page.groups) do
+                table.insert(page.items, {key = "channel-" .. group.channel.id, title = group.channel.title,
+                    subtitle = "Channel", glyph = "user-circle", destination = group.destination})
+                if group.error or not group.items or #group.items == 0 then
+                    table.insert(page.items, {key = "feed-status-" .. group.channel.id,
+                        title = group.channel.title .. " · " .. (group.error or (group.items and "No videos" or "Loading…")),
+                        subtitle = "", glyph = group.error and "alert-circle" or "loader", status = true})
+                end
+                for _, item in ipairs(group.items or {}) do table.insert(page.items, item) end
+            end
+        end
         if page.error then
             table.insert(rows, {id = "status", title = page.error, subtitle = INSTANCE, glyph = "alert-circle"})
         elseif not page.items or #page.items == 0 then
-            table.insert(rows, {id = "status", title = "No results found", glyph = "search"})
+            table.insert(rows, {id = "status", title = page.kind == "feed"
+                and "No favorite channels" or "No results found", glyph = "search"})
         end
         for _, item in ipairs(page.items or {}) do
             local path = cacheDir and (cacheDir .. "/" .. item.key .. ".jpg") or nil
             local icon = path and noctalia.fileExists(path) and path or nil
-            local row = {id = item.key, title = item.title, subtitle = item.subtitle, icon = icon,
-                glyph = not icon and item.glyph or nil}
+            local progress = playbackProgress(item.id)
+            local row = {id = item.key, title = progress and (progress .. " · " .. displayTitle(item)) or displayTitle(item),
+                subtitle = item.subtitle,
+                icon = icon, glyph = not icon and item.glyph or nil}
             if item.destination then row.query = route(item.destination)
-            else allowed[item.key] = item.id end
+            elseif not item.status then row.query = videoRoute(item, page) end
             table.insert(rows, row)
         end
         if page.next then table.insert(rows, navigation("Next page →", page.next, "arrow-right")) end
-        if page.previous then table.insert(rows, navigation("← Previous page", page.previous)) end
-        if page.origin then table.insert(rows, navigation("← Back to search", page.origin)) end
+        if page.previous then table.insert(rows, navigation("Previous page", page.previous)) end
+        if page.origin then
+            table.insert(rows, navigation(page.origin.kind == "favorites" and "Back to favorite channels"
+                or page.origin.kind == "feed" and "Back to latest videos" or "Back to search", page.origin))
+        end
         table.insert(rows, {id = "refresh", title = page.error and "Retry" or "Refresh", glyph = "refresh"})
-        table.insert(rows, {id = "home", title = "← YouTube", glyph = "arrow-left", query = ""})
+        table.insert(rows, {id = "home", title = "YouTube", glyph = "arrow-left", query = ""})
         launcher.setResults(currentQuery, rows)
+    end
+    local laterPage, historyPage = {kind = "later", number = 1}, {kind = "history", number = 1}
+    local listPages = {later = {laterPage}, history = {historyPage}, favorites = {{kind = "favorites", number = 1}},
+        feed = {{kind = "feed", number = 1}}}
+    local clearPage = {kind = "clear", origin = historyPage}
+    local function listPage(kind, number)
+        local pages = listPages[kind]
+        pages[number] = pages[number] or {kind = kind, number = number}
+        return pages[number]
+    end
+    function M.libraryQuery(kind)
+        return route(listPages[kind][1])
+    end
+    local function renderLocal(page)
+        local rows = {}
+        allowed = {}
+        if libraryError and page.kind ~= "video" then
+            table.insert(rows, {id = "status", title = libraryError, glyph = "alert-circle"})
+        elseif page.kind == "video" then
+            allowed.play, allowed.toggle = page.item, page.item
+            rows = {
+                {id = "play", title = "Play in mpv", subtitle = page.item.title, glyph = "player-play"},
+                {id = "toggle", title = contains(library.later, page.item.id)
+                    and "Remove from Watch later" or "Add to Watch later", glyph = "bookmark"},
+            }
+            if contains(library.history, page.item.id) then
+                allowed["remove-history"] = page.item
+                table.insert(rows, {id = "remove-history", title = "Remove from watch history", glyph = "trash"})
+            end
+        elseif page.kind == "clear" then
+            rows = {{id = "clear", title = "Clear all watch history?", subtitle = "Watch later will be kept",
+                glyph = "trash"}}
+        else
+            local records = page.kind == "history" and historyVideos()
+                or page.kind == "favorites" and sortedFavorites() or library[page.kind]
+            if page.kind == "favorites" then
+                table.insert(rows, {id = "feed", title = "Latest videos from favorites", glyph = "player-play",
+                    query = route(listPages.feed[1])})
+            end
+            local lastPage = math.max(1, math.ceil(#records / LIST_PAGE_SIZE))
+            if page.number > lastPage then
+                currentPage = listPage(page.kind, lastPage)
+                renderLocal(currentPage); return
+            end
+            if #records == 0 then
+                table.insert(rows, {id = "status", title = page.kind == "later"
+                    and "Watch later is empty" or page.kind == "favorites"
+                    and "No favorite channels" or "Watch history is empty", glyph = "bookmark"})
+            end
+            for index = (page.number - 1) * LIST_PAGE_SIZE + 1, math.min(page.number * LIST_PAGE_SIZE, #records) do
+                local item = records[index]
+                local channel = page.kind == "favorites"
+                local key = (channel and "channel-" or "video-") .. item.id
+                local path = cacheDir and (cacheDir .. "/" .. key .. ".jpg") or nil
+                local icon = path and noctalia.fileExists(path) and path or nil
+                local query
+                if channel then
+                    page.channels = page.channels or {}
+                    local destination = page.channels[item.id] or {kind = "channel", id = item.id,
+                        name = item.title, number = 1, origin = page}
+                    page.channels[item.id] = destination
+                    query = route(destination)
+                else query = videoRoute(item, page) end
+                table.insert(rows, {id = key, title = channel and ("☆ " .. item.title)
+                    or (item.progress and (item.progress .. " · " .. displayTitle(item)) or displayTitle(item)),
+                    subtitle = item.subtitle, icon = icon,
+                    glyph = not icon and (channel and "user-circle" or "player-play") or nil, query = query})
+            end
+            if page.number < lastPage then
+                table.insert(rows, navigation("Next page →", listPage(page.kind, page.number + 1), "arrow-right"))
+            end
+            if page.number > 1 then
+                table.insert(rows, navigation("Previous page", listPage(page.kind, page.number - 1)))
+            end
+            if page.kind == "history" and #records > 0 then
+                table.insert(rows, {id = "confirm-clear", title = "Clear watch history", glyph = "trash",
+                    query = route(clearPage)})
+            end
+            if page.kind == "history" then
+                table.insert(rows, {id = "refresh", title = "Refresh", glyph = "refresh"})
+            end
+        end
+        if page.origin then table.insert(rows, navigation("Back", page.origin)) end
+        table.insert(rows, {id = "home", title = "YouTube", glyph = "arrow-left", query = ""})
+        launcher.setResults(currentQuery, rows)
+    end
+    local historyBusy = false
+    local function updateHistory()
+        -- Show local records immediately; legacy imports only enrich their progress.
+        renderLocal(currentPage)
+        if historyBusy then return end
+        if not resumeDir or not noctalia.commandExists("mpv") then
+            noctalia.notifyError("Resume storage or mpv is unavailable")
+            return
+        end
+        historyBusy = true
+        local started = noctalia.runAsync({"mpv", "--profile=youtube", "--idle=yes", "--no-terminal",
+            "--vo=null", "--ao=null", "--script-opts-append=youtube-resume-action=scan",
+            "--script-opts-append=youtube-resume-record_dir=" .. resumeDir}, function(result)
+                historyBusy = false
+                if result.exitCode ~= 0 then noctalia.notifyError("Could not load playback positions") end
+                if currentPage and currentPage.kind == "history" then renderLocal(currentPage) end
+            end, 30000)
+        if not started then
+            historyBusy = false
+            noctalia.notifyError("Could not start mpv resume helper")
+        end
     end
     local function saveThumbnail(path, response)
         local body = response.body
@@ -194,6 +525,71 @@ local browser = (function()
         end
         pumpThumbnails()
     end
+    local feedCache = {}
+    local FEED_CHANNELS_PER_PAGE = 8
+    local function queryFeed(page, requestGeneration)
+        local favorites = sortedFavorites()
+        local lastPage = math.max(1, math.ceil(#favorites / FEED_CHANNELS_PER_PAGE))
+        if page.number > lastPage then
+            page = listPage("feed", lastPage)
+            currentPage = page
+        end
+        page.groups, page.items, page.error = {}, {}, nil
+        page.origin = listPages.favorites[1]
+        page.previous = page.number > 1 and listPage("feed", page.number - 1) or nil
+        page.next = page.number < lastPage and listPage("feed", page.number + 1) or nil
+        page.channels = page.channels or {}
+        for index = (page.number - 1) * FEED_CHANNELS_PER_PAGE + 1,
+            math.min(page.number * FEED_CHANNELS_PER_PAGE, #favorites) do
+            local channel = favorites[index]
+            local destination = page.channels[channel.id] or {kind = "channel", id = channel.id,
+                name = channel.title, number = 1, origin = page}
+            page.channels[channel.id] = destination
+            local cached = feedCache[channel.id]
+            local age = cached and (noctalia.nowMs() - cached.loadedAt)
+            table.insert(page.groups, {channel = channel, destination = destination,
+                items = age and age >= 0 and age < PAGE_TTL_MS and cached.items or nil})
+        end
+        render()
+        requestThumbnails()
+        -- Fetch channels one at a time, leaving HTTP capacity for image downloads.
+        local index = 1
+        local fetchNext
+        fetchNext = function()
+            if generation ~= requestGeneration then return end
+            while page.groups[index] and page.groups[index].items do index = index + 1 end
+            local group = page.groups[index]
+            if not group then return end
+            index = index + 1
+            local started = noctalia.http({url = INSTANCE .. "/api/v1/channels/" .. group.channel.id
+                .. "/videos?sort_by=newest", headers = {"Accept: application/json"}, follow_redirects = false},
+                function(response)
+                    pumpThumbnails()
+                    if generation ~= requestGeneration then return end
+                    local data = response.ok and response.status == 200 and noctalia.json.decode(response.body or "")
+                    local source = type(data) == "table" and not data.error and data.videos
+                    if type(source) ~= "table" or (next(source) ~= nil and source[1] == nil) then
+                        group.error = "Could not load videos (HTTP " .. tostring(response.status or 0) .. ")"
+                    else
+                        group.items = {}
+                        for _, item in ipairs(normalize(source, {kind = "channel", id = group.channel.id})) do
+                            if item.id then table.insert(group.items, item) end
+                            if #group.items == 3 then break end
+                        end
+                        feedCache[group.channel.id] = {items = group.items, loadedAt = noctalia.nowMs()}
+                    end
+                    render()
+                    fetchNext()
+                    requestThumbnails()
+                end)
+            if not started then
+                group.error = "Could not start request · Refresh to retry"
+                render()
+                fetchNext()
+            end
+        end
+        fetchNext()
+    end
     function M.query(query)
         generation = generation + 1
         local requestGeneration = generation
@@ -204,19 +600,34 @@ local browser = (function()
         if text == "" then
             launcher.setResults(query, {
                 {id = "hint", title = "Search videos and channels", glyph = "search"},
-                {id = "home", title = "← YouTube", glyph = "arrow-left", query = ""},
+                {id = "home", title = "YouTube", glyph = "arrow-left", query = ""},
             })
             return
         end
         local page = routes[text] or {kind = "search", text = text, number = 1}
         route(page)
         currentPage = page
+        if page.kind == "history" then updateHistory(); return end
+        if page.kind == "feed" then
+            if libraryError then
+                launcher.setResults(query, {{id = "status", title = libraryError, glyph = "alert-circle"},
+                    {id = "home", title = "YouTube", glyph = "arrow-left", query = ""}})
+                return
+            end
+            queryFeed(page, requestGeneration); return
+        end
+        if page.kind == "video" or page.kind == "later" or page.kind == "history"
+            or page.kind == "favorites" or page.kind == "clear" then
+            renderLocal(page); return
+        end
         local age = page.loadedAt and (noctalia.nowMs() - page.loadedAt) or nil
         if page.items and not page.error and age and age >= 0 and age < PAGE_TTL_MS then
             render(); requestThumbnails(); return
         end
         page.items, page.next = nil, nil
-        launcher.setResults(query, {{id = "status", title = "Loading…", subtitle = page.name or page.text, glyph = "loader"}})
+        local rows = {{id = "status", title = "Loading…", subtitle = page.name or page.text, glyph = "loader"}}
+        if page.kind == "channel" then table.insert(rows, 1, favoriteAction(page)) end
+        launcher.setResults(query, rows)
         local url
         if page.kind == "channel" then
             url = INSTANCE .. "/api/v1/channels/" .. page.id .. "/videos?sort_by=newest"
@@ -266,21 +677,67 @@ local browser = (function()
         if not started then page.error = "Could not start Invidious request"; render() end
     end
     function M.activate(id)
+        if id == "toggle-channel" and currentPage and currentPage.kind == "channel" then
+            local favorites = without(library.favorites, currentPage.id)
+            if not contains(library.favorites, currentPage.id) then
+                table.insert(favorites, 1, {id = currentPage.id, title = currentPage.name,
+                    subtitle = "Channel · Browse videos"})
+            end
+            saveLibrary(library.later, library.history, favorites)
+            launcher.setQuery(currentQuery)
+            if currentPage.items or currentPage.error then render()
+            else
+                launcher.setResults(currentQuery, {favoriteAction(currentPage),
+                    {id = "status", title = "Loading…", subtitle = currentPage.name, glyph = "loader"}})
+            end
+            return
+        end
+        if currentPage and currentPage.kind == "video" then
+            local item = allowed[id]
+            if not item then return end
+            if id == "play" then play(item, "https://www.youtube.com/watch?v=" .. item.id)
+            elseif id == "toggle" then
+                toggleLater(item)
+                launcher.setQuery(currentQuery)
+                renderLocal(currentPage)
+            elseif id == "remove-history" then
+                saveLibrary(library.later, without(library.history, item.id))
+                launcher.setQuery(currentQuery)
+                renderLocal(currentPage)
+            end
+            return
+        elseif currentPage and currentPage.kind == "clear" and id == "clear" and not libraryError then
+            saveLibrary(library.later, {})
+            local query = route(historyPage)
+            launcher.setQuery(query)
+            M.query(query)
+            return
+        end
         if id == "refresh" and currentPage then
             currentPage.loadedAt = nil
+            if currentPage.kind == "feed" then feedCache = {} end
             -- The host caches identical queries. Fetch here and use setQuery only to keep the panel open.
             launcher.setQuery(currentQuery)
             M.query(currentQuery)
             return
         end
-        local videoId = allowed[id]
-        if not videoId then return end
-        if not noctalia.commandExists("mpv") then noctalia.notifyError("mpv is not installed"); return end
-        local started = noctalia.runAsync({
-            "mpv", "--profile=youtube", "--", "https://www.youtube.com/watch?v=" .. videoId,
-        })
-        if not started then noctalia.notifyError("Could not start mpv") end
     end
+
+    function M.urlItem(url)
+        local host, path = url:match("^https?://([^/]+)/(.+)$")
+        local id
+        if host == "youtu.be" then id = path:match("^([^?&#/]+)")
+        elseif host == "youtube.com" or host == "www.youtube.com" or host == "m.youtube.com"
+            or host == "music.youtube.com" then
+            id = path:match("^watch%?v=([^&#]+)") or path:match("^watch%?.-&v=([^&#]+)")
+                or path:match("^shorts/([^?&#/]+)") or path:match("^live/([^?&#/]+)")
+                or path:match("^embed/([^?&#/]+)")
+        end
+        if not validId(id, false) then return nil end
+        return enrichRecord({id = id, title = "YouTube · " .. id, subtitle = "Added from URL"})
+    end
+    M.play, M.toggleLater = play, toggleLater
+    function M.isLater(item) return contains(library.later, item.id) end
 
     function M.cancel()
         generation = generation + 1
@@ -290,31 +747,42 @@ local browser = (function()
 
     return M
 end)()
-local mode, input = "menu", ""
+local mode, input, activeQuery, urlItem = "menu", "", "", nil
 
 function onQuery(query)
     local text = query:match("^%s*(.-)%s*$")
-    input = ""
+    input, activeQuery, urlItem = "", query, nil
     if text == "" then
         mode = "menu"
         browser.cancel()
         launcher.setResults(query, {
             {id = "search", title = "Search", subtitle = "Find videos and channels", glyph = "search", query = "Search "},
             {id = "url", title = "Play from URL", subtitle = "Paste a YouTube link", glyph = "player-play", query = "URL "},
+            {id = "later", title = "Watch later", subtitle = "Saved videos", glyph = "bookmark", query = browser.libraryQuery("later")},
+            {id = "history", title = "Watch history", subtitle = "Recently launched videos · Latest 500",
+                glyph = "history", query = browser.libraryQuery("history")},
+            {id = "favorites", title = "Favorite channels", subtitle = "Saved channels",
+                glyph = "star", query = browser.libraryQuery("favorites")},
         })
     elseif text == "URL" or text:match("^URL%s+") then
         mode = "url"
         browser.cancel()
         input = text:match("^URL%s+(.+)$") or ""
-        launcher.setResults(query, {
+        urlItem = browser.urlItem(input)
+        local rows = {
             {
                 id = input == "" and "hint" or "play",
                 title = input == "" and "Paste a YouTube URL" or "Play in mpv",
                 subtitle = input ~= "" and input or nil,
                 glyph = "player-play",
             },
-            {id = "home", title = "← YouTube", glyph = "arrow-left", query = ""},
-        })
+        }
+        if urlItem then
+            table.insert(rows, {id = "toggle", title = browser.isLater(urlItem)
+                and "Remove from Watch later" or "Add to Watch later", glyph = "bookmark"})
+        end
+        table.insert(rows, {id = "home", title = "YouTube", glyph = "arrow-left", query = ""})
+        launcher.setResults(query, rows)
     else
         mode = "search"
         browser.query(query)
@@ -325,10 +793,11 @@ function onActivate(id)
     if mode == "search" then
         browser.activate(id)
     elseif mode == "url" and id == "play" and input ~= "" then
-        if not noctalia.commandExists("mpv") then noctalia.notifyError("mpv is not installed"); return end
         -- Keep pasted URLs out of shell parsing, including quotes and separators.
-        if not noctalia.runAsync({"mpv", "--profile=youtube", "--", input}) then
-            noctalia.notifyError("Could not start mpv")
-        end
+        browser.play(urlItem, input)
+    elseif mode == "url" and id == "toggle" and urlItem then
+        browser.toggleLater(urlItem)
+        launcher.setQuery(activeQuery)
+        onQuery(activeQuery)
     end
 end

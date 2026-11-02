@@ -1,12 +1,42 @@
 # Noctalia keys saved GUI selections and the thumbnail cache by this ID.
 id = "nullflake/youtube-search"
 name = "YouTube"
-version = "1.7.3"
+version = "1.8.0"
 plugin_api = 24
 author = "nullflake"
 icon = "brand-youtube"
 description = "Browse videos and channels, save videos and favorite channels, and view local playback history."
-dependencies = ["yt-dlp", "mpv"]
+dependencies = ["yt-dlp", "mpv", "python3"]
+
+[[setting]]
+key = "instance_url"
+type = "string"
+label_key = "settings.instance_url.label"
+description_key = "settings.instance_url.description"
+default = "https://yt.chocolatemoo53.com"
+
+[[setting]]
+key = "region"
+type = "string"
+label_key = "settings.region.label"
+description_key = "settings.region.description"
+default = "US"
+
+[[setting]]
+key = "playback_quality"
+type = "select"
+label_key = "settings.playback_quality.label"
+description_key = "settings.playback_quality.description"
+default = "auto"
+options = [
+  { value = "auto", label_key = "settings.playback_quality.auto" },
+  { value = "2160", label_key = "settings.playback_quality.2160" },
+  { value = "1440", label_key = "settings.playback_quality.1440" },
+  { value = "1080", label_key = "settings.playback_quality.1080" },
+  { value = "720", label_key = "settings.playback_quality.720" },
+  { value = "480", label_key = "settings.playback_quality.480" },
+  { value = "audio", label_key = "settings.playback_quality.audio" },
+]
 
 # The plugin must also be enabled; see modules/home/noctalia.nix.
 [[launcher_provider]]

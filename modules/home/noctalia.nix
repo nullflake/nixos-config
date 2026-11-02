@@ -16,6 +16,7 @@ let
 
 in
 {
+  home.packages = [ pkgs.python3 ];
   xdg.configFile."noctalia/launcher.toml".source = launcherConfig;
   # Store-backed files deploy the launcher and playback profile together.
   xdg.dataFile."noctalia/plugins/youtube-search".source =

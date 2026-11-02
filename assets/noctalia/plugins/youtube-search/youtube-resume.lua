@@ -1,5 +1,5 @@
 local mp = require("mp")
-local options = { enabled = false, action = "", record_dir = "" }
+local options = { enabled = false, action = "", record_dir = "", queue_events = "" }
 require("mp.options").read_options(options, "youtube-resume")
 if not options.enabled then return end
 local utils = require("mp.utils")
@@ -145,12 +145,30 @@ mp.register_event("file-loaded", function()
   id = validId(candidate) and candidate or nil
   position, length, title = nil, mp.get_property_number("duration"), mp.get_property("media-title", id or "")
   completed, suppressed, reset = false, false, read(dir .. "/.reset")
+  mp.set_property_bool("save-position-on-quit", true)
+  if id and options.queue_events ~= "" then
+    local madeEvents = mp.command_native({name = "subprocess", args = {
+      "@mkdir@", "-p", "-m", "700", "--", options.queue_events}, playback_only = false})
+    if madeEvents and madeEvents.status == 0 then
+      local name = string.format("%010d.%s.%010d.json", os.time(), writerId, writeSerial + 1)
+      if not write(options.queue_events .. "/" .. name, utils.format_json({id = id})) then
+        mp.msg.error("Could not record queued playback")
+      end
+    else mp.msg.error("Cannot create queue event storage") end
+  end
 end)
 mp.observe_property("time-pos", "number", function(_, value) if value then position = value end end)
 mp.observe_property("duration", "number", function(_, value) if value then length = value end end)
 mp.observe_property("pause", "bool", function(_, paused) if paused then saveProgress() end end)
 mp.add_periodic_timer(5, saveProgress)
-mp.register_event("end-file", saveProgress)
+mp.register_event("end-file", function(event)
+  -- Automatic playlist transitions may clear eof-reached before its observer runs.
+  if event.reason == "eof" and id then
+    completed = true
+    removeResume(id, original)
+  else saveProgress() end
+  id, position, length = nil, nil, nil
+end)
 mp.register_event("shutdown", saveProgress)
 
 -- keep-open leaves the player at EOF; completed videos should start over.

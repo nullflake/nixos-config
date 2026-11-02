@@ -2,7 +2,10 @@
 {
   programs.mpv = {
     enable = true;
-    scripts = [ pkgs.mpvScripts.uosc ];
+    scripts = with pkgs.mpvScripts; [
+      uosc
+      mpris
+    ];
     config = {
       keep-open = true;
     };

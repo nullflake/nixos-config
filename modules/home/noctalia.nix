@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 let
   launcherConfig = (pkgs.formats.toml { }).generate "noctalia-launcher.toml" {
     /*
@@ -10,14 +10,36 @@ let
       "noctalia/notes"
       "noctalia/screen_recorder"
       "noctalia/translator"
-      "nullflake/youtube-search"
+      "nullflake/youtube-explorer"
+    ];
+    plugins.source = [
+      {
+        name = "official";
+        kind = "git";
+        location = "https://github.com/noctalia-dev/official-plugins";
+        enabled = true;
+      }
+      {
+        name = "community";
+        kind = "git";
+        location = "https://github.com/noctalia-dev/community-plugins";
+        enabled = true;
+      }
+      {
+        name = "youtube-dev";
+        kind = "path";
+        /*
+          YouTube Explorer is developed in a separate local checkout.
+          Load it directly during development so plugin code changes do not
+          require a NixOS rebuild. The checkout must exist at this path.
+        */
+        location = "${config.home.homeDirectory}/Projects/youtube-explorer";
+        enabled = true;
+      }
     ];
   };
 
 in
 {
   xdg.configFile."noctalia/launcher.toml".source = launcherConfig;
-  # Store-backed files deploy the launcher and playback profile together.
-  xdg.dataFile."noctalia/plugins/youtube-search".source =
-    ../../assets/noctalia/plugins/youtube-search;
 }

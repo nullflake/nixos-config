@@ -89,10 +89,6 @@ Nix configuration changes take effect after rebuilding and activating the system
 
 Existing Umbriel TOML files are linked directly to the checkout by [umbriel.nix](modules/home/umbriel.nix), except for Noctalia's `noctalia.toml`. Edit them in `assets/umbriel/` and run `umb reload` without rebuilding. Adding a new file requires activation to create its link and an entry in [config.toml](assets/umbriel/config.toml) to load it.
 
-Noctalia's `/yt` searches YouTube and plays videos in mpv, with local Watch later, history, favorite channels, and playback resume.
-Searches and channel browsing use yt-dlp to contact YouTube directly; they do not require an Invidious server.
-Rebuild after changes to [the plugin](assets/noctalia/plugins/youtube-search/); reload it in Noctalia after manifest changes.
-
 ### Custom packages
 
 [flake.nix](flake.nix) exposes two custom packages through an overlay:

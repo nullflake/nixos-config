@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 
@@ -58,7 +59,7 @@ def socket_path(queue_path):
     return directory / "player.sock"
 
 
-def read_queue(path):
+def read_items(path):
     saved = json.loads(path.read_text())
     if not isinstance(saved, dict):
         raise TypeError("Playback queue must be an object")
@@ -83,7 +84,57 @@ def read_queue(path):
         if url in urls:
             raise ValueError("Duplicate queued video")
         urls.append(url)
-    return urls
+    return items
+
+
+def read_queue(path):
+    return [video_url(item["id"]) for item in read_items(path)]
+
+
+def video_url(video_id):
+    return "https://www.youtube.com/watch?v=" + video_id
+
+
+def save_items(path, items):
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".part." + uuid.uuid4().hex)
+    try:
+        with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as stream:
+            json.dump({"version": 1, "items": items}, stream)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def current_url(player):
+    if player is None or player.get("idle-active") or player.get("eof-reached"):
+        return None
+    return next((entry["filename"] for entry in player.get("playlist")
+                 if entry.get("current")), None)
+
+
+def validate_item(item):
+    if (not isinstance(item, dict) or not isinstance(item.get("id"), str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{11}", item["id"])
+            or not all(isinstance(item.get(key), str) for key in ("title", "subtitle"))):
+        raise ValueError("Invalid queued video metadata")
+    channel = item.get("channelId")
+    if channel is not None and (not isinstance(channel, str)
+                               or not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel)):
+        raise ValueError("Invalid queued channel")
+    return {key: item[key] for key in ("id", "title", "subtitle", "channelId") if key in item}
+
+
+def notify_queue_changed():
+    try:
+        subprocess.Popen(
+            ["noctalia", "msg", "plugin", "nullflake/youtube-search:queue-events", "all",
+             "queue-changed", uuid.uuid4().hex],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError:
+        pass  # The saved queue remains authoritative when the shell is not running.
 
 
 def connect(path):
@@ -121,7 +172,7 @@ def synchronize(player, urls):
     playlist = player.get("playlist")
     existing = {entry["filename"] for entry in playlist}
     added = []
-    at_end = player.get("eof-reached")
+    at_end = not player.get("idle-active") and player.get("eof-reached")
     for url in urls:
         if url not in existing:
             player.command("loadfile", url, "append")
@@ -151,14 +202,23 @@ def synchronize(player, urls):
 
 def main():
     action, filename, *options = sys.argv[1:]
-    if action not in ("play", "sync"):
+    if action not in ("play", "sync", "toggle", "clear", "complete"):
         raise ValueError("Unknown queue action")
     queue_path = Path(filename)
     start_id = None
     start_time = None
+    item = None
+    completed_token = None
+    completed_entry = None
     playback_options = []
     for option in options:
-        if option.startswith("--queue-start="):
+        if option.startswith("--queue-item="):
+            item = validate_item(json.loads(option.split("=", 1)[1]))
+        elif option.startswith("--queue-token="):
+            completed_token = option.split("=", 1)[1]
+        elif option.startswith("--queue-entry="):
+            completed_entry = int(option.split("=", 1)[1])
+        elif option.startswith("--queue-start="):
             start_id = option.split("=", 1)[1]
         elif option.startswith("--queue-start-time="):
             start_time = float(option.split("=", 1)[1])
@@ -170,7 +230,49 @@ def main():
     path = socket_path(queue_path)
     with path.with_suffix(".lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        urls = read_queue(queue_path)
+        items = read_items(queue_path) if queue_path.exists() else []
+        if action == "complete":
+            if not start_id or not completed_token or completed_entry is None:
+                raise ValueError("Missing completed video identity")
+            remaining = [entry for entry in items if not (
+                entry["id"] == start_id and entry.get("queueToken") == completed_token)]
+            if remaining == items:
+                return
+            save_items(queue_path, remaining)
+            player = connect(path)
+            if player is not None:
+                try:
+                    for index, entry in enumerate(player.get("playlist")):
+                        if entry.get("id") == completed_entry:
+                            player.command("playlist-remove", index)
+                            break
+                finally:
+                    player.close()
+            notify_queue_changed()
+            return
+        player = connect(path)
+        if action == "toggle":
+            if item is None:
+                raise ValueError("Missing queued video")
+            if any(entry["id"] == item["id"] for entry in items):
+                items = [entry for entry in items if entry["id"] != item["id"]]
+            else:
+                items.append(item)
+        elif action == "clear":
+            current = current_url(player)
+            items = [entry for entry in items if video_url(entry["id"]) == current]
+        elif action == "play" and item is not None:
+            existing = next((entry for entry in items if entry["id"] == item["id"]), None)
+            if existing is None:
+                items.insert(0, item)
+            else:
+                existing.update(item)
+            start_id = item["id"]
+        for entry in items:
+            if action == "play" or not entry.get("queueToken"):
+                # Play rebuilds the whole playlist; an earlier EOF must not consume any of its new entries.
+                entry["queueToken"] = uuid.uuid4().hex
+        urls = [video_url(entry["id"]) for entry in items]
         if action == "play" and not urls:
             raise ValueError("Playback queue is empty")
         start_index = 0
@@ -179,13 +281,20 @@ def main():
             if start_url not in urls:
                 raise ValueError("Selected video is no longer in the playback queue")
             start_index = urls.index(start_url)
-        player = connect(path)
         process = None
         try:
+            save_items(queue_path, items)
+            if action == "play":
+                options = [*options,
+                    "--script=" + str(Path(__file__).with_name("queue-playback.lua")),
+                    "--script-opts-append=queue-playback-queue_path=" + str(queue_path.resolve()),
+                    "--script-opts-append=queue-playback-helper=" + str(Path(__file__).resolve()),
+                    "--script-opts-append=queue-playback-python=" + sys.executable,
+                    "--script-opts-append=youtube-resume-queue_path=" + str(queue_path.resolve())]
             if player is None and action == "play":
                 path.unlink(missing_ok=True)
                 process = subprocess.Popen(
-                    ["mpv", *options, "--idle=yes", "--keep-open=yes", "--force-window=yes",
+                    ["mpv", *options, "--idle=yes", "--keep-open=no", "--force-window=yes",
                      "--input-ipc-server=" + str(path)],
                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     start_new_session=True,
@@ -200,6 +309,7 @@ def main():
                 return  # Editing a saved queue must not start playback.
             if action == "play":
                 apply_options(player, options)
+                player.command("set_property", "keep-open", False)
                 player.command("stop")
                 player.command("playlist-clear")
                 for index, url in enumerate(urls):
@@ -210,9 +320,6 @@ def main():
                         player.command("loadfile", url, "append")
                 player.command("set_property", "playlist-pos", start_index)
                 player.command("set_property", "pause", False)
-            elif not urls:
-                player.command("stop")
-                player.command("playlist-clear")
             else:
                 synchronize(player, urls)
         except Exception:

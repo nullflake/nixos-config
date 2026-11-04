@@ -39,6 +39,10 @@ options = [
 ]
 
 # The plugin must also be enabled; see modules/home/noctalia.nix.
+[[service]]
+id = "queue-events"
+entry = "queue-events.luau"
+
 [[launcher_provider]]
 id = "youtube"
 entry = "launcher.luau"

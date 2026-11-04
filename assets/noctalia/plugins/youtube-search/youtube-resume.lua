@@ -1,5 +1,5 @@
 local mp = require("mp")
-local options = { enabled = false, action = "", record_dir = "", queue_events = "" }
+local options = { enabled = false, action = "", record_dir = "", queue_events = "", queue_path = "" }
 require("mp.options").read_options(options, "youtube-resume")
 if not options.enabled then return end
 local utils = require("mp.utils")
@@ -151,7 +151,14 @@ mp.register_event("file-loaded", function()
       "@mkdir@", "-p", "-m", "700", "--", options.queue_events}, playback_only = false})
     if madeEvents and madeEvents.status == 0 then
       local name = string.format("%010d.%s.%010d.json", os.time(), writerId, writeSerial + 1)
-      if not write(options.queue_events .. "/" .. name, utils.format_json({id = id})) then
+      local event = {id = id}
+      local queue = utils.parse_json(read(options.queue_path) or "")
+      if type(queue) == "table" and type(queue.items) == "table" then
+        for _, item in ipairs(queue.items) do
+          if item.id == id then event = item; break end
+        end
+      end
+      if not write(options.queue_events .. "/" .. name, utils.format_json(event)) then
         mp.msg.error("Could not record queued playback")
       end
     else mp.msg.error("Cannot create queue event storage") end

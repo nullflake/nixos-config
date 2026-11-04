@@ -26,7 +26,7 @@ let
         enabled = true;
       }
       {
-        name = "youtube-dev";
+        name = "nullflake";
         kind = "path";
         /*
           YouTube Explorer is developed in a separate local checkout.

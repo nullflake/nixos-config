@@ -20,6 +20,7 @@
     heroic
     spotify
     stremio-linux-shell
+    yt-dlp
 
     # Productivity
     gnome-calculator

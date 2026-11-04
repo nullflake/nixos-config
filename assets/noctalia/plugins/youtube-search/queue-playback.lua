@@ -25,15 +25,20 @@ end)
 mp.register_event("end-file", function(event)
     local entry = entries[event.playlist_entry_id]
     entries[event.playlist_entry_id] = nil
-    if event.reason ~= "eof" or not entry then return end
-    -- The helper serializes EOF, clear and edits; entry IDs protect a later replay.
-    mp.command_native_async({name = "subprocess", playback_only = false, args = {
-        options.python, options.helper, "complete", options.queue_path,
+    if not entry or (event.reason ~= "eof" and event.reason ~= "stop") then return end
+    -- Detach so closing mpv cannot kill a pending queue update. Tokens and entry
+    -- IDs keep a late event from consuming a replay or an unplayed queue item.
+    local _, error = mp.command_native({
+        "run", options.python, options.helper, "complete", options.queue_path,
         "--queue-start=" .. entry.id, "--queue-token=" .. entry.token,
         "--queue-entry=" .. tostring(event.playlist_entry_id),
-    }}, function(success, result, error)
-        if not success or not result or result.status ~= 0 then
-            mp.msg.error("Could not remove completed video from queue: " .. tostring(error or (result or {}).error_string))
-        end
-    end)
+    })
+    if error then mp.msg.error("Could not update playback queue: " .. tostring(error)) end
+end)
+
+mp.register_event("shutdown", function()
+    -- Also clear when closing an idle player or a video that is still loading.
+    local _, error = mp.command_native({"run", options.python, options.helper, "close", options.queue_path,
+        "--queue-pid=" .. tostring(utils.getpid())})
+    if error then mp.msg.error("Could not clear playback queue: " .. tostring(error)) end
 end)

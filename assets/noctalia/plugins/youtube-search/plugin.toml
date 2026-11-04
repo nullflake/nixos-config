@@ -1,7 +1,7 @@
 # Noctalia keys saved GUI selections and the thumbnail cache by this ID.
 id = "nullflake/youtube-search"
 name = "YouTube"
-version = "1.8.0"
+version = "1.9.1"
 plugin_api = 24
 author = "nullflake"
 icon = "brand-youtube"
@@ -9,18 +9,21 @@ description = "Browse videos and channels, save videos and favorite channels, an
 dependencies = ["yt-dlp", "mpv", "python3"]
 
 [[setting]]
-key = "instance_url"
-type = "string"
-label_key = "settings.instance_url.label"
-description_key = "settings.instance_url.description"
-default = "https://yt.chocolatemoo53.com"
-
-[[setting]]
-key = "region"
-type = "string"
-label_key = "settings.region.label"
-description_key = "settings.region.description"
-default = "US"
+key = "search_language"
+type = "select"
+label_key = "settings.search_language.label"
+description_key = "settings.search_language.description"
+default = "tr"
+options = [
+  { value = "tr", label_key = "settings.search_language.tr" },
+  { value = "en", label_key = "settings.search_language.en" },
+  { value = "de", label_key = "settings.search_language.de" },
+  { value = "fr", label_key = "settings.search_language.fr" },
+  { value = "es", label_key = "settings.search_language.es" },
+  { value = "ru", label_key = "settings.search_language.ru" },
+  { value = "ar", label_key = "settings.search_language.ar" },
+  { value = "ja", label_key = "settings.search_language.ja" },
+]
 
 [[setting]]
 key = "playback_quality"

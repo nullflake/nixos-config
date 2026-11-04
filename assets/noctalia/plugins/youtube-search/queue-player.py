@@ -202,7 +202,7 @@ def synchronize(player, urls):
 
 def main():
     action, filename, *options = sys.argv[1:]
-    if action not in ("play", "sync", "toggle", "clear", "complete"):
+    if action not in ("play", "sync", "toggle", "clear", "complete", "close"):
         raise ValueError("Unknown queue action")
     queue_path = Path(filename)
     start_id = None
@@ -210,6 +210,7 @@ def main():
     item = None
     completed_token = None
     completed_entry = None
+    closing_pid = None
     playback_options = []
     for option in options:
         if option.startswith("--queue-item="):
@@ -218,6 +219,8 @@ def main():
             completed_token = option.split("=", 1)[1]
         elif option.startswith("--queue-entry="):
             completed_entry = int(option.split("=", 1)[1])
+        elif option.startswith("--queue-pid="):
+            closing_pid = int(option.split("=", 1)[1])
         elif option.startswith("--queue-start="):
             start_id = option.split("=", 1)[1]
         elif option.startswith("--queue-start-time="):
@@ -231,6 +234,24 @@ def main():
     with path.with_suffix(".lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         items = read_items(queue_path) if queue_path.exists() else []
+        if action == "close":
+            if closing_pid is None or closing_pid <= 0:
+                raise ValueError("Missing closing player identity")
+            player = None
+            try:
+                player = connect(path)
+                # A delayed shutdown must not clear a newly started player's queue.
+                if player is not None and player.get("pid") != closing_pid:
+                    return
+            except (OSError, RuntimeError):
+                pass  # The old player may already have closed its IPC connection.
+            finally:
+                if player is not None:
+                    player.close()
+            if items:
+                save_items(queue_path, [])
+                notify_queue_changed()
+            return
         if action == "complete":
             if not start_id or not completed_token or completed_entry is None:
                 raise ValueError("Missing completed video identity")
@@ -239,16 +260,21 @@ def main():
             if remaining == items:
                 return
             save_items(queue_path, remaining)
-            player = connect(path)
-            if player is not None:
-                try:
+            notify_queue_changed()
+            # Queue storage is authoritative even if mpv is already closing.
+            player = None
+            try:
+                player = connect(path)
+                if player is not None:
                     for index, entry in enumerate(player.get("playlist")):
                         if entry.get("id") == completed_entry:
                             player.command("playlist-remove", index)
                             break
-                finally:
+            except (OSError, RuntimeError):
+                pass
+            finally:
+                if player is not None:
                     player.close()
-            notify_queue_changed()
             return
         player = connect(path)
         if action == "toggle":
@@ -268,9 +294,14 @@ def main():
             else:
                 existing.update(item)
             start_id = item["id"]
+        if action == "play" and items:
+            current = current_url(player)
+            selected = video_url(start_id or items[0]["id"])
+            if current and current != selected:
+                items = [entry for entry in items if video_url(entry["id"]) != current]
         for entry in items:
             if action == "play" or not entry.get("queueToken"):
-                # Play rebuilds the whole playlist; an earlier EOF must not consume any of its new entries.
+                # Play rebuilds the whole playlist; an earlier end-file must not consume its new entries.
                 entry["queueToken"] = uuid.uuid4().hex
         urls = [video_url(entry["id"]) for entry in items]
         if action == "play" and not urls:

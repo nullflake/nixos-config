@@ -2,7 +2,7 @@
 local records = require("./records.luau")
 local Library = require("./library.luau")
 local Playback = require("./playback.luau")
-local Invidious = require("./invidious.luau")
+local Search = require("./search.luau")
 local Thumbnails = require("./thumbnails.luau")
 
 local Module = {}
@@ -14,7 +14,7 @@ function Module.new()
     local LIST_PAGE_SIZE, PAGE_TTL_MS = 25, 60000
     local libraryStore = Library.new(dataDir)
     local playback = Playback.new(dataDir, function() if M.queueChanged then M.queueChanged() end end)
-    local api = Invidious.new()
+    local api = Search.new()
     local render
     local currentPage
     local thumbnails = Thumbnails.new(dataDir, function() return currentPage end, function() render() end)
@@ -126,7 +126,7 @@ function Module.new()
             end
         end
         if page.error then
-            table.insert(rows, {id = "status", title = page.error, subtitle = api.instance, glyph = "alert-circle"})
+            table.insert(rows, {id = "status", title = page.error, glyph = "alert-circle"})
         elseif not page.items or #page.items == 0 then
             table.insert(rows, {id = "status", title = page.kind == "feed"
                 and "No favorite channels" or "No results found", glyph = "search"})
@@ -142,7 +142,7 @@ function Module.new()
             elseif not item.status then row.query = videoRoute(item, page) end
             table.insert(rows, row)
         end
-        if page.next then table.insert(rows, navigation("Next page →", page.next, "arrow-right")) end
+        if page.next then table.insert(rows, navigation("Next page", page.next, "arrow-right")) end
         if page.previous then table.insert(rows, navigation("Previous page", page.previous)) end
         if page.origin then
             table.insert(rows, navigation(page.origin.kind == "favorites" and "Back to favorite channels"
@@ -254,7 +254,7 @@ function Module.new()
                     glyph = not icon and (channel and "user-circle" or "player-play") or nil, query = query})
             end
             if page.number < lastPage then
-                table.insert(rows, navigation("Next page →", listPage(page.kind, page.number + 1), "arrow-right"))
+                table.insert(rows, navigation("Next page", listPage(page.kind, page.number + 1), "arrow-right"))
             end
             if page.number > 1 then
                 table.insert(rows, navigation("Previous page", listPage(page.kind, page.number - 1)))
@@ -311,7 +311,7 @@ function Module.new()
         end
         render()
         thumbnails.request()
-        -- Fetch channels one at a time, leaving HTTP capacity for image downloads.
+        -- Fetch channels one at a time, reusing cached results during navigation.
         local index = 1
         local fetchNext
         fetchNext = function()
@@ -320,35 +320,28 @@ function Module.new()
             local group = page.groups[index]
             if not group then return end
             index = index + 1
-            local started = api.channelVideos(group.channel.id, function(response)
-                    thumbnails.pump()
-                    if generation ~= requestGeneration then return end
-                    local data = response.ok and response.status == 200 and noctalia.json.decode(response.body or "")
-                    local source = type(data) == "table" and not data.error and data.videos
-                    if type(source) ~= "table" or (next(source) ~= nil and source[1] == nil) then
-                        group.error = "Could not load videos (HTTP " .. tostring(response.status or 0) .. ")"
-                    else
-                        group.items = {}
-                        for _, item in ipairs(api.normalize(source, {kind = "channel", id = group.channel.id})) do
-                            if item.id then table.insert(group.items, item) end
-                            if #group.items == 3 then break end
-                        end
-                        feedCache[group.channel.id] = {items = group.items, loadedAt = noctalia.nowMs()}
+            api.channelVideos(group.channel.id, function(result)
+                if generation ~= requestGeneration then return end
+                if result.error then
+                    group.error = result.error
+                else
+                    group.items = {}
+                    for _, item in ipairs(result.items) do
+                        if item.id then table.insert(group.items, item) end
+                        if #group.items == 3 then break end
                     end
-                    render()
-                    fetchNext()
-                    thumbnails.request()
-                end)
-            if not started then
-                group.error = "Could not start request · Refresh to retry"
+                    feedCache[group.channel.id] = {items = group.items, loadedAt = noctalia.nowMs()}
+                end
                 render()
                 fetchNext()
-            end
+                thumbnails.request()
+            end)
         end
         fetchNext()
     end
     function M.query(query)
         generation = generation + 1
+        api.cancel()
         local requestGeneration = generation
         currentQuery, currentPage, allowed = query, nil, {}
         thumbnails.cancel()
@@ -416,48 +409,20 @@ function Module.new()
             table.insert(rows, 1, favoriteAction(page))
         end
         launcher.setResults(query, rows)
-        local started = api.request(page, function(response)
-            -- Even stale API callbacks release a shared HTTP slot needed by the image queue.
-            thumbnails.pump()
+        api.request(page, function(result)
             if generation ~= requestGeneration then return end
-            page.error = nil
-            if not response.ok or not response.status or response.status < 200 or response.status >= 300 then
-                page.error = "Invidious request failed (HTTP " .. tostring(response.status or 0) .. ")"
-            else
-                local data = noctalia.json.decode(response.body or "")
-                local source
-                if type(data) == "table" then
-                    if page.kind == "channel" then source = data.videos else source = data end
-                end
-                if type(data) ~= "table" or data.error or type(source) ~= "table"
-                    or (next(source) ~= nil and source[1] == nil) then
-                    page.error = type(data) == "table" and clean(data.error) or ""
-                    if page.error == "" then page.error = "Invalid Invidious response" end
-                else
-                    page.items = api.normalize(source, page)
-                    page.loadedAt = noctalia.nowMs()
-                    if page.kind == "search" and #source > 0 then
-                        page.next = {kind = "search", text = page.text, number = page.number + 1, previous = page}
-                    elseif page.kind == "channel-search" and #source > 0 then
-                        page.next = {kind = "channel-search", id = page.id, name = page.name,
-                            text = page.text, number = page.number + 1, previous = page, origin = page.origin}
-                    elseif page.kind == "channel" and type(data.continuation) == "string" and data.continuation ~= "" then
-                        local ancestor, repeated = page, false
-                        while ancestor do
-                            if ancestor.continuation == data.continuation then repeated = true end
-                            ancestor = ancestor.previous
-                        end
-                        if not repeated then
-                            page.next = {kind = "channel", id = page.id, name = page.name, number = page.number + 1,
-                                continuation = data.continuation, previous = page, origin = page.origin}
-                        end
-                    end
+            page.error = result.error
+            if not page.error then
+                page.items = result.items
+                page.loadedAt = noctalia.nowMs()
+                if result.hasMore then
+                    page.next = {kind = page.kind, id = page.id, name = page.name, text = page.text,
+                        number = page.number + 1, previous = page, origin = page.origin}
                 end
             end
             render()
             if not page.error then thumbnails.request() end
         end)
-        if not started then page.error = "Could not start Invidious request"; render() end
     end
     function M.activate(id)
         if id == "reset-queue" and currentPage and currentPage.kind == "reset-queue" and playback.error then
@@ -562,6 +527,7 @@ function Module.new()
 
     function M.cancel()
         generation = generation + 1
+        api.cancel()
         currentPage, allowed = nil, {}
         thumbnails.cancel()
     end

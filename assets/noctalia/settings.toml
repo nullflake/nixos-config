@@ -1,0 +1,275 @@
+# GUI changes are saved to ~/.local/state/noctalia/settings.toml and override
+# these base settings. Remove a local override to use the repository value again.
+
+config_version = 19
+
+[bar.default]
+center = [ "clock", "spacer_2", "weather" ]
+end = [
+    "media",
+    "tray",
+    "notifications",
+    "clipboard",
+    "network",
+    "bluetooth",
+    "output_volume",
+    "input_volume",
+    "brightness",
+    "battery",
+    "session"
+]
+font_family = "Rubik"
+margin_edge = 10
+margin_ends = 10
+start = [ "workspaces" ]
+
+[brightness]
+enable_ddcutil = true
+
+[control_center]
+hidden_tabs = [ "power" ]
+show_session_button = false
+sidebar_section = "none"
+
+    [[control_center.shortcuts]]
+    type = "nightlight"
+
+    [[control_center.shortcuts]]
+    type = "caffeine"
+
+    [[control_center.shortcuts]]
+    type = "noctalia/screen_recorder:toggle"
+
+[dock]
+auto_hide = true
+auto_hide_reveal_delay_ms = 150
+enabled = true
+icon_size = 64
+launcher_position = "end"
+margin_edge = 16
+reserve_space = false
+
+[hooks]
+started = "helium & kitty & zeditor & obsidian & spotify"
+
+[idle]
+behavior_order = [ "lock", "screen-off", "lock-and-suspend" ]
+
+    [idle.behavior.lock]
+    action = "lock"
+    enabled = true
+    timeout = 600.0
+
+    [idle.behavior.lock-and-suspend]
+    action = "lock_and_suspend"
+    enabled = true
+    timeout = 3600.0
+
+    [idle.behavior.screen-off]
+    action = "screen_off"
+    enabled = true
+    timeout = 900.0
+
+[lockscreen]
+transition = [ "disc", "honeycomb", "pixel", "stripes", "wipe" ]
+
+[lockscreen_widgets]
+enabled = true
+schema_version = 2
+widget_order = [
+    "lockscreen-login-box@DP-1",
+    "lockscreen-widget-0000000000000001",
+    "lockscreen-widget-0000000000000002",
+    "lockscreen-widget-0000000000000003",
+    "lockscreen-widget-0000000000000004"
+]
+
+    [lockscreen_widgets.grid]
+    cell_size = 16
+    major_interval = 4
+    visible = true
+
+    [lockscreen_widgets.widget."lockscreen-login-box@DP-1"]
+    box_height = 70.0
+    box_width = 400.0
+    cx = 1280.0
+    cy = 813.0
+    output = "DP-1"
+    placement_height = 1440.0
+    placement_width = 2560.0
+    rotation = 0.0
+    type = "login_box"
+
+        [lockscreen_widgets.widget."lockscreen-login-box@DP-1".settings]
+        background_color = "surface_container"
+        background_opacity = 0.0
+        background_radius = 12.0
+        center_password_text = false
+        input_opacity = 1.0
+        input_radius = 6.0
+        layout = "compact"
+        show_caps_lock = true
+        show_keyboard_layout = true
+        show_login_button = false
+        show_media = true
+        show_media_controls = true
+        show_password_reveal = false
+        show_session_buttons = true
+        show_unlock_hint = false
+        show_weather = true
+
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000001]
+    box_height = 128.0
+    box_width = 320.0
+    cx = 1280.0
+    cy = 976.0
+    output = "DP-1"
+    placement_height = 1440.0
+    placement_width = 2560.0
+    rotation = 0.0
+    type = "media_player"
+
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000002]
+    box_height = 192.0
+    box_width = 384.0
+    cx = 1280.0
+    cy = 624.0
+    output = "DP-1"
+    placement_height = 1440.0
+    placement_width = 2560.0
+    rotation = 0.0
+    type = "clock"
+
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000002.settings]
+        background = false
+
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000003]
+    box_height = 0.0
+    box_width = 0.0
+    cx = 2524.0
+    cy = 1404.0
+    output = "DP-1"
+    placement_height = 1440.0
+    placement_width = 2560.0
+    rotation = 0.0
+    type = "button"
+
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000003.settings]
+        background = true
+        command = "shutdown now"
+        glyph = "shutdown"
+        label = ""
+        variant = "ghost"
+
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000004]
+    box_height = 0.0
+    box_width = 0.0
+    cx = 2484.0
+    cy = 1404.0
+    output = "DP-1"
+    placement_height = 1440.0
+    placement_width = 2560.0
+    rotation = 0.0
+    type = "button"
+
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000004.settings]
+        background = true
+        command = "reboot"
+        glyph = "reboot"
+        label = ""
+        variant = "ghost"
+
+[osd.kinds]
+volume_input = false
+
+[plugin_settings."noctalia/translator"]
+target_lang = "tr"
+
+[plugin_settings."nullflake/youtube-explorer"]
+autoplay_recommendations = true
+search_language = "tr"
+
+[plugins]
+enabled = [ "noctalia/notes", "noctalia/screen_recorder", "noctalia/translator", "nullflake/youtube-explorer" ]
+
+[shell]
+polkit_agent = true
+screen_time_enabled = true
+show_close_buttons = false
+umbriel_audio_provider_enabled = true
+umbriel_overview_type_to_launch_enabled = true
+
+    [shell.greeter_sync]
+    auto_sync = true
+
+    [shell.launcher]
+    compact = true
+    default_view = "all"
+    show_app_actions = true
+    show_session_button = false
+
+    [shell.mpris]
+    blacklist = [ "playerctld" ]
+
+    [shell.panel]
+    clipboard_position = "auto"
+    control_center_placement = "floating"
+    open_near_click_clipboard = true
+    open_near_click_control_center = true
+    session_placement = "floating"
+    wallpaper_placement = "floating"
+
+    [shell.screenshot]
+    annotate = true
+    directory = "/home/nullflake/Pictures/Screenshots"
+
+    [shell.session]
+    show_shortcuts = false
+
+    [shell.window_switcher]
+    mru = true
+
+[theme]
+custom_palette = "tomorrow"
+mode = "dark"
+source = "custom"
+
+    [theme.templates]
+    builtin_ids = [ "btop", "gtk3", "gtk4", "hyprland", "kitty", "umbriel" ]
+    community_ids = [ "discord", "micro", "obsidian", "zed", "heroiclauncher", "bat", "fzf", "yazi" ]
+
+[wallpaper]
+directory = "~/Pictures/Wallpapers"
+transition = [ "disc", "honeycomb", "pixel", "stripes", "wipe" ]
+
+    [wallpaper.default]
+    path = "~/.config/noctalia/wallpaper.webp"
+
+    [wallpaper.last]
+    path = "~/.config/noctalia/wallpaper.webp"
+
+    [wallpaper.monitors.DP-1]
+    path = "~/.config/noctalia/wallpaper.webp"
+
+[widget.clock]
+format = "%a %-d %b, %H:%M"
+
+[widget.media]
+hide_album_art = true
+hide_when_no_media = true
+min_length = 0
+title_scroll = "always"
+
+[widget.network]
+show_label = false
+
+[widget.spacer_2]
+type = "spacer"
+
+[widget.tray]
+drawer = true
+
+[widget.workspaces]
+active_pill_size = 4.6000000000000005
+pill_scale = 0.59999999999999998
+show_labels = false

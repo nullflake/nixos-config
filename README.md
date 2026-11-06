@@ -14,17 +14,16 @@ Keep the checkout at **`~/nixos`** for the configured user. [flake.nix](flake.ni
 
 ### Files to restore separately
 
-These files are maintained outside the repository. Restore them from a backup or recreate them on a fresh installation.
+These files are maintained outside the repository. Restore them from a backup or recreate them on a fresh installation. Optional entries are only needed to preserve local preferences.
 
 | Files | Location |
 | --- | --- |
 | Hyprland configuration (Lua) | `~/.config/hypr/` |
-| Noctalia settings and state | `~/.local/state/noctalia/` |
-| Umbriel settings written by Noctalia | `~/.config/umbriel/noctalia.toml` |
-| Kitty theme and opacity | `~/.config/kitty/themes/noctalia.conf`, `~/.config/kitty/opacity.conf` |
+| Noctalia GUI overrides (optional) | `~/.local/state/noctalia/settings.toml` |
+| Kitty opacity (optional) | `~/.config/kitty/opacity.conf` |
 | VeraCrypt container used by `vault` | `~/Documents/veracrypt/veracrypt` |
 
-Noctalia can regenerate its Umbriel and Kitty theme files. Kitty opacity is managed by `kitty opacity`. Umbriel's `noctalia.toml` is an optional include; the other Umbriel settings come from [assets/umbriel/](assets/umbriel/).
+Noctalia's base settings, custom palette and default wallpaper are installed from the repository. Its generated Umbriel settings (`~/.config/umbriel/noctalia.toml`) and Kitty theme (`~/.config/kitty/themes/noctalia.conf`) can be regenerated. Kitty opacity is managed by `kitty opacity`.
 
 ## First activation
 
@@ -88,6 +87,12 @@ Nix configuration changes take effect after rebuilding and activating the system
 [Flakes read Git-tracked files](https://nix.dev/concepts/flakes.html). When adding a file, run `git add <path>` before rebuilding so the flake can see it.
 
 Existing Umbriel TOML files are linked directly to the checkout by [umbriel.nix](modules/home/umbriel.nix), except for Noctalia's `noctalia.toml`. Edit them in `assets/umbriel/` and run `umb reload` without rebuilding. Adding a new file requires activation to create its link and an entry in [config.toml](assets/umbriel/config.toml) to load it.
+
+### Noctalia settings
+
+Noctalia's base settings and custom `tomorrow` palette are in [assets/noctalia/](assets/noctalia/); the default wallpaper is [assets/images/wallpaper.webp](assets/images/wallpaper.webp). Home Manager installs them under `~/.config/noctalia/` through [noctalia.nix](modules/home/noctalia.nix); changes to these repository files require rebuilding and activating the configuration. GUI changes are saved separately in `~/.local/state/noctalia/settings.toml` and take precedence over the repository settings. Remove an individual local override to use the repository value again.
+
+If the lock screen falls back to the default login box after removing local settings while Noctalia is running, stop Noctalia, remove `[lockscreen_widgets]` and all its subtables from `~/.local/state/noctalia/settings.toml`, then start Noctalia again. This restores the repository layout; deleting the settings while Noctalia is running can cause it to save a fallback layout again.
 
 ### Custom packages
 

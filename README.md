@@ -19,7 +19,6 @@ These files are maintained outside the repository. Restore them from a backup or
 | Files | Location |
 | --- | --- |
 | Hyprland configuration (Lua) | `~/.config/hypr/` |
-| Noctalia GUI overrides (optional) | `~/.local/state/noctalia/settings.toml` |
 | Kitty opacity (optional) | `~/.config/kitty/opacity.conf` |
 | VeraCrypt container used by `vault` | `~/Documents/veracrypt/veracrypt` |
 

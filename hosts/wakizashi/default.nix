@@ -61,7 +61,6 @@ in
           paths = [
             "Documents/veracrypt/veracrypt"
             "Documents/obsidian"
-            ".local/state/noctalia/settings.toml"
           ];
           unmountedPaths = [ "Documents/veracrypt/vault" ];
           containerPaths = [ "Documents/veracrypt/veracrypt" ];

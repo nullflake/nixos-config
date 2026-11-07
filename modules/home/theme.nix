@@ -37,8 +37,9 @@
       "file://${config.xdg.userDirs.download}"
       "file://${config.xdg.userDirs.documents}"
       "file://${config.xdg.userDirs.pictures}"
-      "file://${config.xdg.userDirs.music}"
       "file://${config.xdg.userDirs.videos}"
+      "file://${config.home.homeDirectory}/.config"
+      "file://${config.home.homeDirectory}/.local"
     ];
   };
 

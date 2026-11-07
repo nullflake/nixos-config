@@ -18,6 +18,7 @@ in
     ../../modules/system/greeter.nix
     ../../modules/system/homeAssistant.nix
     ../../modules/system/locale.nix
+    ../../modules/system/localsend.nix
     ../../modules/system/memory.nix
     ../../modules/system/network.nix
     ../../modules/system/nh.nix

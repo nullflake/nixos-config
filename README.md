@@ -110,7 +110,7 @@ The flake passes `inputs`, `username` and `flakeDir` to both system and Home Man
 
 [network.nix](modules/system/network.nix) routes system DNS through local `dnscrypt-proxy` and fixed Anonymized DNSCrypt relays. There is no fallback resolver: DNS fails if the proxy is unavailable. Update relay mappings when changing resolvers.
 
-[zapret.nix](modules/system/zapret.nix) stops zapret when a `proton*` or `tun*` VPN interface comes up and starts it again when that interface goes down. The configured user can also start and stop zapret without a sudo password.
+[zapret.nix](modules/system/zapret.nix) keeps zapret stopped while a `proton*` or `tun*` VPN interface is connecting, connected or disconnecting, and starts it again after the last such VPN disconnects. Every service start checks VPN state; zapret stays stopped if that check fails. The configured user can also start and stop zapret without a sudo password, subject to the same VPN check.
 
 ### Home Assistant
 

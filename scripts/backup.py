@@ -26,8 +26,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 STAMP = "%d%m%Y_%H%M%S"
 LEGACY_STAMP = "%Y-%m-%dT%H-%M-%S.%fZ"
-BACKUP_INTERVAL = 2 * 60 * 60
-RETENTION = dt.timedelta(days=7)
+BACKUP_INTERVAL = 24 * 60 * 60
+KEEP_SNAPSHOTS = 8
 RETRY = 15 * 60
 STATE_VERSION = 2
 MANIFEST = ".backup-manifest.json"
@@ -437,7 +437,7 @@ def read_manifest(path: Path) -> SnapshotManifest:
 
 
 def prune(destination: Path, zone: dt.tzinfo | None = None) -> None:
-    cutoff = dt.datetime.now(dt.UTC) - RETENTION
+    snapshots: list[tuple[dt.datetime, Path]] = []
     for path in destination.iterdir():
         if path.is_symlink() or not path.is_dir():
             continue
@@ -446,8 +446,11 @@ def prune(destination: Path, zone: dt.tzinfo | None = None) -> None:
             continue
         if (path / MANIFEST).exists():
             stamp = manifest_time(read_json(path / MANIFEST), path)
-        if stamp < cutoff:
-            shutil.rmtree(path)
+        snapshots.append((stamp, path))
+    # Collect all timestamps before deleting anything; age alone never expires a backup.
+    snapshots.sort(key=lambda item: (item[0], item[1].name), reverse=True)
+    for _, path in snapshots[KEEP_SNAPSHOTS:]:
+        shutil.rmtree(path)
 
 
 def require_unmounted(settings: Settings) -> None:
@@ -831,7 +834,7 @@ def main() -> int:
     _ = parser.add_argument(
         "--force",
         action="store_true",
-        help="Back up now, ignoring the two-hour interval and retry delay",
+        help="Back up now, ignoring the 24-hour interval and retry delay",
     )
     _ = parser.add_argument(
         "--verify",

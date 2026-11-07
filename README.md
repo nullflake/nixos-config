@@ -126,7 +126,7 @@ Pressing the button unmutes; releasing it mutes. The service also requests mute 
 
 [backup.nix](modules/system/backup.nix) backs up the home-relative paths selected under `modules.backup` in the host configuration. On `wakizashi`, connect a volume with the exact filesystem label `Backup` and let udiskie mount it. Run `vault unmount` first; backups are postponed while the configured VeraCrypt container is mounted.
 
-Snapshots are stored under `<volume>/<hostname>/<username>/`. A newly detected mount triggers a backup; while it stays mounted, backups repeat every two hours. Completed snapshots older than seven days are removed after a successful backup. The backup adds no encryption: the VeraCrypt container stays encrypted, but other selected files are copied as-is.
+Snapshots are stored under `<volume>/<hostname>/<username>/`. A newly detected mount triggers a backup; while it stays mounted, backups repeat every 24 hours. The latest 8 completed snapshots are kept regardless of age; older snapshots are removed only after a successful backup. The backup adds no encryption: the VeraCrypt container stays encrypted, but other selected files are copied as-is.
 
 Use `usb-backup --force` to bypass the interval and retry delay, or `usb-backup --verify <snapshot>` to verify an existing snapshot. Check failures with `journalctl --user -u usb-backup.service`.
 

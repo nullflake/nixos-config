@@ -33,7 +33,6 @@
     android-tools
     claude-code
     codex
-    git
     just
     python3
 

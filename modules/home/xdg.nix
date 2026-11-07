@@ -1,41 +1,46 @@
-{ config, ... }:
+{ config, lib, ... }:
+let
+  mimeDefaults = desktop: types: lib.genAttrs types (_: [ desktop ]);
+in
 {
   xdg.mimeApps = {
     enable = true;
-    defaultApplications = {
-      # Mail
-      "x-scheme-handler/mailto" = [ "protonmail-desktop.desktop" ];
-
-      # Browser
-      "text/html" = [ "helium.desktop" ];
-      "x-scheme-handler/http" = [ "helium.desktop" ];
-      "x-scheme-handler/https" = [ "helium.desktop" ];
-      "x-scheme-handler/about" = [ "helium.desktop" ];
-      "x-scheme-handler/unknown" = [ "helium.desktop" ];
-
-      # Pdf
-      "application/pdf" = [ "org.gnome.Papers.desktop" ];
-
+    # Keep wildcard defaults from declaring support for every matching format.
+    associations.added = lib.filterAttrs (
+      mime: _: !(lib.hasSuffix "*" mime)
+    ) config.xdg.mimeApps.defaultApplications;
+    defaultApplications =
       # Text
-      "text/plain" = [ "micro.desktop" ];
-      "application/x-zerosize" = [ "micro.desktop" ];
-      "inode/x-empty" = [ "micro.desktop" ];
-
+      mimeDefaults "micro.desktop" [
+        "application/x-zerosize"
+        "inode/x-empty"
+        "text/plain"
+      ]
+      # PDF
+      // mimeDefaults "org.gnome.Papers.desktop" [
+        "application/pdf"
+      ]
       # Images
-      "image/jpeg" = [ "swayimg.desktop" ];
-      "image/png" = [ "swayimg.desktop" ];
-      "image/gif" = [ "swayimg.desktop" ];
-      "image/webp" = [ "swayimg.desktop" ];
-
-      # Videos
-      "video/mp4" = [ "mpv.desktop" ];
-      "video/x-matroska" = [ "mpv.desktop" ];
-      "video/webm" = [ "mpv.desktop" ];
-
-      # Audio
-      "audio/mpeg" = [ "mpv.desktop" ];
-      "audio/flac" = [ "mpv.desktop" ];
-    };
+      // mimeDefaults "swayimg.desktop" [
+        "image/*"
+      ]
+      # Media
+      // mimeDefaults "mpv.desktop" [
+        "audio/*"
+        "video/*"
+      ]
+      # Browser
+      // mimeDefaults "helium.desktop" [
+        "text/html"
+        "x-scheme-handler/about"
+        "x-scheme-handler/http"
+        "x-scheme-handler/https"
+        "x-scheme-handler/unknown"
+      ]
+      # Mail
+      // mimeDefaults "proton-mail.desktop" [
+        "x-scheme-handler/mailto"
+      ];
   };
 
   xdg.userDirs = {
@@ -48,15 +53,17 @@
     music = "${config.home.homeDirectory}/Music";
     videos = "${config.home.homeDirectory}/Videos";
     extraConfig = {
-      XDG_SOURCES_DIR = "${config.home.homeDirectory}/Sources";
+      SOURCES = "${config.home.homeDirectory}/Sources";
     };
   };
 
   # Nautilus "New Document" template
-  home.activation.setupTemplates = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-    mkdir -p "${config.home.homeDirectory}/Templates"
+  home.activation.setupTemplates = lib.mkIf (config.xdg.userDirs.templates != null) (
+    config.lib.dag.entryAfter [ "writeBoundary" ] ''
+      run mkdir -p ${lib.escapeShellArg config.xdg.userDirs.templates}
 
-    f="${config.home.homeDirectory}/Templates/Empty File"
-    [ -e "$f" ] || $DRY_RUN_CMD touch "$f"
-  '';
+      f=${lib.escapeShellArg "${config.xdg.userDirs.templates}/Empty File"}
+      [ -e "$f" ] || run touch "$f"
+    ''
+  );
 }

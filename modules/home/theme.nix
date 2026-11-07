@@ -54,8 +54,21 @@
   };
 
   dconf.settings = {
+    "org/gnome/desktop/interface" = {
+      document-font-name = "${config.gtk.font.name} ${toString config.gtk.font.size}";
+      monospace-font-name = "JetBrainsMono Nerd Font 11";
+    };
+
+    "org/gnome/desktop/privacy" = {
+      remember-recent-files = false;
+    };
+
     "org/gnome/desktop/wm/preferences" = {
       button-layout = "";
+    };
+
+    "org/gnome/nautilus/list-view" = {
+      use-tree-view = true;
     };
   };
 }

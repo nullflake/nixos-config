@@ -288,7 +288,6 @@ cfg() {
   esac
 }
 
-
 # Autocompletion for cfg.
 _cfg_completion() {
   local -a subcommands

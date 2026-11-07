@@ -3,7 +3,6 @@
   programs.mangohud = {
     enable = true;
     settings = {
-
       # display
       position = "top-left";
       font_size = 20;

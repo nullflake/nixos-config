@@ -129,6 +129,9 @@ widget_order = [
     rotation = 0.0
     type = "media_player"
 
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000001.settings]
+        hide_when_no_media = true
+
     [lockscreen_widgets.widget.lockscreen-widget-0000000000000002]
     box_height = 192.0
     box_width = 384.0
@@ -209,7 +212,7 @@ umbriel_overview_type_to_launch_enabled = true
     show_session_button = false
 
     [shell.mpris]
-    blacklist = [ "playerctld" ]
+    blacklist = [ "chromium", "playerctld" ]
 
     [shell.panel]
     clipboard_position = "auto"

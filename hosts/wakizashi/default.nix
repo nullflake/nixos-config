@@ -60,6 +60,7 @@ in
           enable = true;
           label = "Backup";
           paths = [
+            ".config/net.imput.helium/Default/Bookmarks"
             "Documents/veracrypt/veracrypt"
             "Documents/obsidian"
           ];

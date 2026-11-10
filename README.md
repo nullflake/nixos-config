@@ -4,6 +4,8 @@ Personal NixOS and Home Manager configuration built from one flake on `nixos-uns
 
 The current host, **[wakizashi](hosts/wakizashi/)**, is an `x86_64-linux` AMD/Nvidia desktop using Umbriel and Noctalia. Hyprland is also available as a fallback session.
 
+For Hyprland, select **Hyprland (UWSM)** in the greeter to use the systemd-managed session. UWSM support also keeps the package aligned with the cached nixpkgs build.
+
 ## Apply the configuration
 
 Use an existing NixOS installation with flakes and `nix-command` enabled. Keep the checkout at **`~/nixos`** for the configured user: the shell helpers, `nh` and live Umbriel links depend on `flakeDir` in [flake.nix](flake.nix). Change that value if moving the checkout.

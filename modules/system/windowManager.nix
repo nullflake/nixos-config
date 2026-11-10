@@ -26,6 +26,8 @@
       programs.hyprland = {
         enable = true;
         xwayland.enable = true;
+        # Match the cached nixpkgs package instead of rebuilding without UWSM.
+        withUWSM = true;
       };
     })
 

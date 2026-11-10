@@ -74,6 +74,8 @@ Stage new files with `git add <path>` before rebuilding so the flake includes th
 
 Base settings and the custom `tomorrow` palette live in [assets/noctalia/](assets/noctalia/). The default wallpaper is [assets/images/wallpaper.webp](assets/images/wallpaper.webp). Home Manager installs these files under `~/.config/noctalia/` through [noctalia.nix](modules/home/noctalia.nix); rebuild and activate to apply repository changes.
 
+The custom [Obsidian template](assets/noctalia/templates/obsidian.css) writes `~/Documents/obsidian/.obsidian/snippets/nullflake.css`. Enable `nullflake` once in Obsidian’s CSS snippets settings; update `output_path` if the vault moves. Keep the community Obsidian template disabled to avoid duplicate rendering.
+
 GUI changes are saved separately to `~/.local/state/noctalia/settings.toml` and override the base settings without modifying the repository. Remove a local override to use the corresponding repository value again.
 
 If the lock screen falls back to the default login box after deleting local settings while Noctalia is running, stop Noctalia, remove `[lockscreen_widgets]` and all its subtables from the local `settings.toml`, then restart Noctalia. Cleaning it while Noctalia is running can cause the fallback layout to be saved again.

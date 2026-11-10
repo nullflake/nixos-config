@@ -239,7 +239,11 @@ source = "custom"
 
     [theme.templates]
     builtin_ids = [ "btop", "gtk3", "gtk4", "hyprland", "kitty", "umbriel" ]
-    community_ids = [ "discord", "micro", "obsidian", "zed", "heroiclauncher", "bat", "fzf", "yazi" ]
+    community_ids = [ "discord", "micro", "zed", "heroiclauncher", "bat", "fzf", "yazi" ]
+
+    [theme.templates.user.obsidian]
+    input_path = "templates/obsidian.css"
+    output_path = "~/Documents/obsidian/.obsidian/snippets/nullflake.css"
 
 [wallpaper]
 directory = "~/Pictures/Wallpapers"

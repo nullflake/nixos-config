@@ -35,24 +35,9 @@ let
     )
   '';
 
-  canStart = pkgs.writeShellScript "zapret-can-start" ''
-    export LC_ALL=C
-    if ! devices="$(${pkgs.coreutils}/bin/timeout 5s ${pkgs.networkmanager}/bin/nmcli \
-      --terse --escape no --fields DEVICE,STATE device status)"; then
-      echo "Cannot determine VPN state; leaving zapret stopped." >&2
-      exit 2
-    fi
-
-    while IFS=: read -r iface state; do
-      case "$iface" in
-        proton*|tun*)
-          case "$state" in
-            connected*|connecting*|disconnecting*) exit 1 ;;
-          esac
-          ;;
-      esac
-    done <<< "$devices"
-    exit 0
+  guardPython = pkgs.python3.withPackages (python: [ python.dbus-fast ]);
+  vpnGuard = pkgs.writeShellScript "zapretVpnMonitor" ''
+    exec ${guardPython}/bin/python3 ${../../scripts/zapretVpnMonitor.py} "$@"
   '';
 in
 {
@@ -94,35 +79,41 @@ in
     extraStopCommands = cleanupFirewall;
   };
 
-  # Check VPN state on every start, including boot and configuration switches.
+  # The guard owns automatic starts. Binding its lifetime also makes manual down
+  # and guard crashes stop zapret, without a retry loop undoing a manual stop.
   systemd.services.zapret = {
-    after = [ "NetworkManager.service" ];
-    serviceConfig.ExecCondition = canStart;
+    wantedBy = lib.mkForce [ ];
+    bindsTo = [ "zapret-vpn-monitor.service" ];
+    after = [ "zapret-vpn-monitor.service" ];
+    serviceConfig = {
+      ExecCondition = "${vpnGuard} --check";
+      RestartSec = 2;
+      TimeoutStartSec = 15;
+      TimeoutStopSec = 5;
+    };
   };
 
-  # Reconcile current VPN state instead of trusting potentially stale events.
-  networking.networkmanager.dispatcherScripts = [
-    {
-      source = pkgs.writeShellScript "zapret-vpn-dispatcher" ''
-        IFACE="$1"
-        ACTION="$2"
-        # protonX: ProtonVPN native iface, tunX: OpenVPN-based tunnels
-        if [[ "$IFACE" == proton* ]] || [[ "$IFACE" == tun* ]]; then
-          case "$ACTION" in
-            up|vpn-up|down|vpn-down)
-              if ${canStart}; then
-                ${pkgs.systemd}/bin/systemctl start zapret.service
-              else
-                ${pkgs.systemd}/bin/systemctl stop zapret.service
-              fi
-              ;;
-          esac
-        fi
-      '';
-      # "basic" covers both regular and vpn up/down events
-      type = "basic";
-    }
-  ];
+  systemd.services.zapret-vpn-monitor = {
+    description = "Reconcile zapret with NetworkManager VPN state";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "NetworkManager.service" ];
+    after = [ "NetworkManager.service" ];
+    # A transient NM/bus outage must not permanently exhaust the guard's retries.
+    startLimitIntervalSec = 0;
+    serviceConfig = {
+      Type = "exec";
+      ExecStart = vpnGuard;
+      Restart = "always";
+      RestartSec = 2;
+      WatchdogSec = 20;
+      NotifyAccess = "main";
+      NoNewPrivileges = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      PrivateTmp = true;
+      RestrictAddressFamilies = [ "AF_UNIX" ];
+    };
+  };
 
   # Allow toggling zapret without a password prompt
   security.sudo.extraRules = [
@@ -130,11 +121,11 @@ in
       users = [ username ];
       commands = [
         {
-          command = "/run/current-system/sw/bin/systemctl start zapret";
+          command = "/run/current-system/sw/bin/systemctl start zapret-vpn-monitor.service";
           options = [ "NOPASSWD" ];
         }
         {
-          command = "/run/current-system/sw/bin/systemctl stop zapret";
+          command = "/run/current-system/sw/bin/systemctl stop zapret-vpn-monitor.service";
           options = [ "NOPASSWD" ];
         }
       ];

@@ -1,13 +1,13 @@
 zapret() {
   case "$1" in
     up)
-      sudo systemctl start zapret
+      sudo systemctl start zapret-vpn-monitor.service
       ;;
     down)
-      sudo systemctl stop zapret
+      sudo systemctl stop zapret-vpn-monitor.service
       ;;
     status)
-      systemctl status zapret
+      systemctl status zapret-vpn-monitor.service zapret.service
       ;;
     *)
       echo "Usage: zapret up | down | status"

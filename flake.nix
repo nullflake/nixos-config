@@ -2,6 +2,18 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
+    /*
+      Keep cached Codex 0.166.0: the affected 0.167.0 package lacks aws-lc,
+      oniguruma, sqlite and zstd required by cargoSetupHook's system-lib policy
+      (including AWS_LC_SYS_USE_SYSTEM=1), causing a build failure.
+      https://github.com/NixOS/nixpkgs/issues/585124
+      Upstream fix adds the missing buildInputs instead of disabling the policy:
+      https://github.com/NixOS/nixpkgs/pull/584667
+      Remove this input and its overlay once system nixpkgs includes that fix
+      and its Codex binary is cached and verified here, avoiding a local rebuild.
+    */
+    nixpkgs-codex.url = "github:nixos/nixpkgs/f9a75f41be3a74eab55d3a7679d34ad6cc0da977";
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -79,6 +91,8 @@
             {
               nixpkgs.overlays = [
                 (final: prev: {
+                  codex = inputs.nixpkgs-codex.legacyPackages.${prev.stdenv.hostPlatform.system}.codex;
+
                   helium = prev.callPackage ./pkgs/helium.nix { };
 
                   yaruCustom = prev.callPackage ./pkgs/yaruCustom.nix {

@@ -250,13 +250,13 @@ directory = "~/Pictures/Wallpapers"
 transition = [ "disc", "honeycomb", "pixel", "stripes", "wipe" ]
 
     [wallpaper.default]
-    path = "~/.config/noctalia/wallpaper.webp"
+    path = "@wallpaper@"
 
     [wallpaper.last]
-    path = "~/.config/noctalia/wallpaper.webp"
+    path = "@wallpaper@"
 
     [wallpaper.monitors.DP-1]
-    path = "~/.config/noctalia/wallpaper.webp"
+    path = "@wallpaper@"
 
 [widget.clock]
 format = "%a %-d %b, %H:%M"

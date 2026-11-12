@@ -74,7 +74,7 @@ Stage new files with `git add <path>` before rebuilding so the flake includes th
 
 ### Noctalia
 
-Base settings and the custom `tomorrow` palette live in [assets/noctalia/](assets/noctalia/). The default wallpaper is [assets/images/wallpaper.webp](assets/images/wallpaper.webp). Home Manager installs these files under `~/.config/noctalia/` through [noctalia.nix](modules/home/noctalia.nix); rebuild and activate to apply repository changes.
+Base settings and the custom `tomorrow` palette live in [assets/noctalia/](assets/noctalia/). Noctalia and Limine share [assets/images/wallpaper](assets/images/wallpaper). To change the wallpaper, replace this file with a JPEG or WebP image, keeping the extensionless filename. Home Manager installs the settings and palette under `~/.config/noctalia/` through [noctalia.nix](modules/home/noctalia.nix), substituting the wallpaper’s Nix store path so image changes also change the configured path; rebuild and activate to apply repository changes.
 
 The custom [Obsidian template](assets/noctalia/templates/obsidian.css) writes `~/Documents/obsidian/.obsidian/snippets/nullflake.css`. Enable `nullflake` once in Obsidian’s CSS snippets settings; update `output_path` if the vault moves. Keep the community Obsidian template disabled to avoid duplicate rendering.
 

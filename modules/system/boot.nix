@@ -5,7 +5,7 @@ let
   bootWallpaper = pkgs.runCommand "limine-wallpaper.png" {
     nativeBuildInputs = [ pkgs.imagemagick ];
   } ''
-    magick ${../../assets/images/wallpaper.webp} \
+    magick ${../../assets/images/wallpaper} \
       -auto-orient -resize '2560x1440^' -gravity center -extent 2560x1440 \
       -background black -alpha remove -alpha off -strip \
       -define png:color-type=2 "PNG:$out"

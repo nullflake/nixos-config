@@ -74,6 +74,16 @@
         passwordless-sync-users = [ username ];
 
         settings = {
+          appearance = {
+            hide_logo = true;
+            scheme_selector_position = "hidden";
+          };
+
+          clock = {
+            date_format = "";
+            time_font_size = 112;
+          };
+
           /*
             Single source of truth is custom.theme.cursor, matching the
             rest of the desktop environment.

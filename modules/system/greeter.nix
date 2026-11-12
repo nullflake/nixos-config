@@ -6,6 +6,12 @@
   username,
   ...
 }:
+let
+  noctaliaSettings = fromTOML (builtins.readFile ../../assets/noctalia/settings.toml);
+  wallpaper = {
+    blur = noctaliaSettings.lockscreen.blur_intensity or 0.5;
+  };
+in
 {
   imports = [
     inputs.noctalia-greeter.nixosModules.default
@@ -77,6 +83,9 @@
           appearance = {
             hide_logo = true;
             scheme_selector_position = "hidden";
+            inherit wallpaper;
+            # Apply lock-screen blur without overriding synced wallpaper paths.
+            wallpapers = lib.mapAttrs (_: _: wallpaper) (noctaliaSettings.wallpaper.monitors or { });
           };
 
           clock = {

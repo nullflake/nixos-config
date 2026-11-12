@@ -1,14 +1,16 @@
 { pkgs, ... }:
 
 let
-  # Convert the wallpaper to PNG for Limine and crop to 16:9 without stretching.
-  bootWallpaper = pkgs.runCommand "limine-wallpaper.png" {
+  bootWallpaper = pkgs.runCommand "blurred-wallpaper.png" {
     nativeBuildInputs = [ pkgs.imagemagick ];
   } ''
+    # Match Noctalia's 0.5 lock-screen blur approximately: radius 20,
+    # sigma 10, with three passes at the target resolution.
     magick ${../../assets/images/wallpaper} \
       -auto-orient -resize '2560x1440^' -gravity center -extent 2560x1440 \
-      -background black -alpha remove -alpha off -strip \
-      -define png:color-type=2 "PNG:$out"
+      -background black -alpha remove -alpha off \
+      -virtual-pixel edge -blur 20x10 -blur 20x10 -blur 20x10 \
+      -depth 8 -strip -define png:color-type=2 "PNG:$out"
   '';
 
   tomorrow = (builtins.fromJSON (builtins.readFile ../../assets/noctalia/palettes/tomorrow.json)).dark;

@@ -7,7 +7,7 @@
 }:
 
 let
-  cfg = config.modules.backup;
+  cfg = config.internal.backup;
   metadataNames = [
     ".backup-manifest.json"
     ".backup-complete"
@@ -44,9 +44,7 @@ let
   };
 in
 {
-  options.modules.backup = {
-    enable = lib.mkEnableOption "unencrypted USB backups";
-
+  options.internal.backup = {
     label = lib.mkOption {
       type = lib.types.str;
       default = "Backup";
@@ -72,11 +70,11 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = {
     assertions = [
       {
         assertion = cfg.label != "" && cfg.paths != [ ];
-        message = "modules.backup requires a nonempty label and at least one path.";
+        message = "internal.backup requires a nonempty label and at least one path.";
       }
       {
         assertion = lib.all (
@@ -86,17 +84,17 @@ in
           && lib.all (part: part != "" && part != "." && part != "..") (lib.splitString "/" path)
           && !(lib.elem (builtins.head (lib.splitString "/" path)) metadataNames)
         ) (cfg.paths ++ cfg.unmountedPaths ++ cfg.containerPaths);
-        message = "modules.backup paths must be relative to home without empty, '.' or '..' components or reserved metadata roots.";
+        message = "internal.backup paths must be relative to home without empty, '.' or '..' components or reserved metadata roots.";
       }
       {
         assertion =
           lib.length cfg.paths == lib.length (lib.unique cfg.paths)
           && lib.all (parent: lib.all (child: !(lib.hasPrefix "${parent}/" child)) cfg.paths) cfg.paths;
-        message = "modules.backup.paths must not contain duplicates or nested selections.";
+        message = "internal.backup.paths must not contain duplicates or nested selections.";
       }
       {
         assertion = lib.all (path: lib.elem path cfg.paths) cfg.containerPaths;
-        message = "modules.backup.containerPaths must also be selected in modules.backup.paths.";
+        message = "internal.backup.containerPaths must also be selected in internal.backup.paths.";
       }
     ];
 

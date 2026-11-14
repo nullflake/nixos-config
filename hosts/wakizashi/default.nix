@@ -40,24 +40,8 @@ in
   configuration =
     { pkgs, ... }:
     {
-      custom = {
-        greeter.backend = "noctalia";
-        unfree.mode = "all";
-        windowManager = [
-          "umbriel"
-          "hyprland"
-        ];
-
-        theme.cursor = {
-          name = "Bibata-Modern-Classic";
-          package = pkgs.bibata-cursors;
-          size = 24;
-        };
-      };
-
-      modules = {
+      internal = {
         backup = {
-          enable = true;
           label = "Backup";
           paths = [
             ".config/net.imput.helium/Default/Bookmarks"
@@ -68,9 +52,9 @@ in
           containerPaths = [ "Documents/veracrypt/veracrypt" ];
         };
 
-        homeAssistant = {
-          enable = true;
+        greeter.backend = "noctalia";
 
+        homeAssistant = {
           /*
             LAN control must stay enabled on the bulb.
             Reserve its IP in the router's DHCP settings.
@@ -83,10 +67,22 @@ in
         };
 
         ptt = {
-          enable = true;
           device = "/dev/input/by-id/usb-Logitech_Gaming_Mouse_G502_0D7C36763738-event-mouse";
           button = 276;
         };
+
+        theme.cursor = {
+          name = "Bibata-Modern-Classic";
+          package = pkgs.bibata-cursors;
+          size = 24;
+        };
+
+        unfree.mode = "all";
+
+        windowManager = [
+          "umbriel"
+          "hyprland"
+        ];
       };
 
       home-manager.users.${username} = import ./home.nix;

@@ -99,14 +99,14 @@ Desktop assets are shared. Copying a host does not create separate Umbriel or No
 
 ### Host choices
 
-Set system choices in the host's `default.nix` and Home Manager imports in `home.nix`. Options without defaults must be selected explicitly.
+Set system choices in the host's `default.nix` and Home Manager imports in `home.nix`. Options without defaults must be selected explicitly. Importing the backup, Home Assistant or PTT module enables it; configure its options under `internal` and remove both its import and settings to disable it.
 
 | Option | Choices or required values |
 | --- | --- |
-| [`custom.windowManager`](modules/system/windowManager.nix) | A list containing `hyprland`, `umbriel`, or both. |
-| [`custom.greeter.backend`](modules/system/greeter.nix) | `noctalia` or `tuigreet`; this module requires exactly one selected window manager for `tuigreet`. |
-| [`custom.unfree.mode`](modules/system/unfree.nix) | `all`, `none` or `selected`; `selected` also requires a nonempty `custom.unfree.packages` list. |
-| [`custom.theme.cursor`](modules/system/theme.nix) | Theme `name` and `package`; `size` defaults to `24`. |
+| [`internal.windowManager`](modules/system/windowManager.nix) | A list containing `hyprland`, `umbriel`, or both. |
+| [`internal.greeter.backend`](modules/system/greeter.nix) | `noctalia` or `tuigreet`; this module requires exactly one selected window manager for `tuigreet`. |
+| [`internal.unfree.mode`](modules/system/unfree.nix) | `all`, `none` or `selected`; `selected` also requires a nonempty `internal.unfree.packages` list. |
+| [`internal.theme.cursor`](modules/system/theme.nix) | Theme `name` and `package`; `size` defaults to `24`. |
 
 The flake passes `inputs`, `username` and `flakeDir` to both system and Home Manager modules.
 
@@ -120,17 +120,17 @@ The flake passes `inputs`, `username` and `flakeDir` to both system and Home Man
 
 ### Home Assistant
 
-Configure Yeelight devices by IP under `modules.homeAssistant.devices` in the host configuration. Keep LAN control enabled on the bulb and reserve its IP in the router. See [homeAssistant.nix](modules/system/homeAssistant.nix).
+Configure Yeelight devices by IP under `internal.homeAssistant.devices` in the host configuration. Keep LAN control enabled on the bulb and reserve its IP in the router. See [homeAssistant.nix](modules/system/homeAssistant.nix).
 
 ### Push-to-talk
 
-[ptt.nix](modules/system/ptt.nix) controls the default microphone with one mouse button. Set `modules.ptt.device` to a stable `/dev/input/by-id/...` path and `modules.ptt.button` to its evdev button code.
+[ptt.nix](modules/system/ptt.nix) controls the default microphone with one mouse button. Set `internal.ptt.device` to a stable `/dev/input/by-id/...` path and `internal.ptt.button` to its evdev button code.
 
 Pressing the button unmutes; releasing it mutes. The service also requests mute on startup, device loss and shutdown. Manual mute changes are respected until the next button event, source change or detected audio-service outage.
 
 ### USB backups and VeraCrypt
 
-[backup.nix](modules/system/backup.nix) backs up the home-relative paths selected under `modules.backup` in the host configuration. On `wakizashi`, connect a volume with the exact filesystem label `Backup` and let udiskie mount it. Run `vault unmount` first; backups are postponed while the configured VeraCrypt container is mounted.
+[backup.nix](modules/system/backup.nix) backs up the home-relative paths selected under `internal.backup` in the host configuration. On `wakizashi`, connect a volume with the exact filesystem label `Backup` and let udiskie mount it. Run `vault unmount` first; backups are postponed while the configured VeraCrypt container is mounted.
 
 Snapshots are stored under `<volume>/<hostname>/<username>/`. A newly detected mount triggers a backup; while it stays mounted, backups repeat every 24 hours. The latest 8 completed snapshots are kept regardless of age; older snapshots are removed only after a successful backup. The backup adds no encryption: the VeraCrypt container stays encrypted, but other selected files are copied as-is.
 

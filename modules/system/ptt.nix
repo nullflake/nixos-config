@@ -7,7 +7,7 @@
 }:
 
 let
-  cfg = config.modules.ptt;
+  cfg = config.internal.ptt;
 
   /*
     Convert to string so that an unset (null) value does not cause a
@@ -263,16 +263,14 @@ let
   };
 in
 {
-  options.modules.ptt = {
-    enable = lib.mkEnableOption "Push-to-Talk";
-
+  options.internal.ptt = {
     device = lib.mkOption {
       type = lib.types.nullOr (lib.types.strMatching "/dev/input/by-id/.+");
       default = null;
 
       description = ''
         Stable /dev/input/by-id/... evdev device path used for PTT.
-        Required when `modules.ptt.enable` is true.
+        Required when this module is imported.
       '';
 
       example = "/dev/input/by-id/usb-Vendor_Mouse_SERIAL-event-mouse";
@@ -284,21 +282,21 @@ in
 
       description = ''
         Evdev EV_KEY code used for Push-to-Talk.
-        Required when `modules.ptt.enable` is true.
+        Required when this module is imported.
         Example: 276 = BTN_EXTRA.
       '';
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = {
     assertions = [
       {
         assertion = cfg.device != null;
-        message = "modules.ptt.device must be set when modules.ptt.enable is true.";
+        message = "internal.ptt.device must be set when the PTT module is imported.";
       }
       {
         assertion = cfg.button != null;
-        message = "modules.ptt.button must be set when modules.ptt.enable is true.";
+        message = "internal.ptt.button must be set when the PTT module is imported.";
       }
     ];
 

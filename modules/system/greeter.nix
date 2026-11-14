@@ -17,7 +17,7 @@ in
     inputs.noctalia-greeter.nixosModules.default
   ];
 
-  options.custom.greeter.backend = lib.mkOption {
+  options.internal.greeter.backend = lib.mkOption {
     type = lib.types.enum [
       "tuigreet"
       "noctalia"
@@ -31,15 +31,15 @@ in
     are evaluated; mkMerge combines the backend definitions.
   */
   config = lib.mkMerge [
-    (lib.mkIf (config.custom.greeter.backend == "tuigreet") {
+    (lib.mkIf (config.internal.greeter.backend == "tuigreet") {
       /*
         This module derives tuigreet's --cmd default from one selected
         window manager. tuigreet itself also supports session selection.
       */
       assertions = [
         {
-          assertion = builtins.length config.custom.windowManager == 1;
-          message = "The tuigreet backend derives --cmd from one window manager; custom.windowManager must contain exactly one entry.";
+          assertion = builtins.length config.internal.windowManager == 1;
+          message = "The tuigreet backend derives --cmd from one window manager; internal.windowManager must contain exactly one entry.";
         }
       ];
 
@@ -48,7 +48,7 @@ in
         settings.default_session = {
           command =
             let
-              wm = builtins.elemAt config.custom.windowManager 0;
+              wm = builtins.elemAt config.internal.windowManager 0;
             in
             "${pkgs.tuigreet}/bin/tuigreet --time --remember --cmd ${wm}";
         };
@@ -65,7 +65,7 @@ in
       };
     })
 
-    (lib.mkIf (config.custom.greeter.backend == "noctalia") {
+    (lib.mkIf (config.internal.greeter.backend == "noctalia") {
       /*
         noctalia lists every installed session and lets you pick one
         interactively, so no --session is forced here.
@@ -94,13 +94,13 @@ in
           };
 
           /*
-            Single source of truth is custom.theme.cursor, matching the
+            Single source of truth is internal.theme.cursor, matching the
             rest of the desktop environment.
           */
           cursor = {
-            theme = config.custom.theme.cursor.name;
-            size = config.custom.theme.cursor.size;
-            path = "${config.custom.theme.cursor.package}/share/icons";
+            theme = config.internal.theme.cursor.name;
+            size = config.internal.theme.cursor.size;
+            path = "${config.internal.theme.cursor.package}/share/icons";
           };
 
           /*

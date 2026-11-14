@@ -10,7 +10,7 @@
     inputs.umbriel.nixosModules.default
   ];
 
-  options.custom.windowManager = lib.mkOption {
+  options.internal.windowManager = lib.mkOption {
     type = lib.types.listOf (
       lib.types.enum [
         "hyprland"
@@ -22,7 +22,7 @@
   };
 
   config = lib.mkMerge [
-    (lib.mkIf (builtins.elem "hyprland" config.custom.windowManager) {
+    (lib.mkIf (builtins.elem "hyprland" config.internal.windowManager) {
       programs.hyprland = {
         enable = true;
         xwayland.enable = true;
@@ -31,7 +31,7 @@
       };
     })
 
-    (lib.mkIf (builtins.elem "umbriel" config.custom.windowManager) {
+    (lib.mkIf (builtins.elem "umbriel" config.internal.windowManager) {
       programs.umbriel.enable = true;
     })
   ];

@@ -5,10 +5,10 @@
 }:
 
 let
-  cfg = config.custom.theme.cursor;
+  cfg = config.internal.theme.cursor;
 in
 {
-  options.custom.theme.cursor = {
+  options.internal.theme.cursor = {
     name = lib.mkOption {
       type = lib.types.str;
       /*

@@ -8,9 +8,9 @@
 {
   home.pointerCursor = {
     enable = true;
-    name = osConfig.custom.theme.cursor.name;
-    package = osConfig.custom.theme.cursor.package;
-    size = osConfig.custom.theme.cursor.size;
+    name = osConfig.internal.theme.cursor.name;
+    package = osConfig.internal.theme.cursor.package;
+    size = osConfig.internal.theme.cursor.size;
     gtk.enable = true;
     x11.enable = true;
   };

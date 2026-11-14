@@ -4,7 +4,7 @@
   ...
 }:
 let
-  cfg = config.modules.homeAssistant;
+  cfg = config.internal.homeAssistant;
 
   /*
     Port protected by the firewall rule below; this does not configure HA.
@@ -14,9 +14,7 @@ let
   port = 8123;
 in
 {
-  options.modules.homeAssistant = {
-    enable = lib.mkEnableOption "Home Assistant";
-
+  options.internal.homeAssistant = {
     devices = lib.mkOption {
       type = lib.types.attrsOf (
         lib.types.submodule {
@@ -31,15 +29,15 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = {
     assertions = [
       {
         assertion = config.networking.firewall.enable;
-        message = "modules.homeAssistant: blocking remote access to port ${toString port} requires networking.firewall.enable.";
+        message = "internal.homeAssistant: blocking remote access to port ${toString port} requires networking.firewall.enable.";
       }
       {
         assertion = config.networking.firewall.backend == "iptables";
-        message = "modules.homeAssistant: the port ${toString port} restriction requires the iptables firewall backend. Adapt the rule before changing backends.";
+        message = "internal.homeAssistant: the port ${toString port} restriction requires the iptables firewall backend. Adapt the rule before changing backends.";
       }
     ];
 

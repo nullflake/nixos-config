@@ -1,9 +1,9 @@
 { config, lib, ... }:
 let
-  cfg = config.custom.unfree;
+  cfg = config.internal.unfree;
 in
 {
-  options.custom.unfree = {
+  options.internal.unfree = {
     mode = lib.mkOption {
       type = lib.types.enum [
         "all"
@@ -16,7 +16,7 @@ in
         Unfree package policy:
         - "all": allow all unfree packages
         - "none": disallow unfree packages entirely
-        - "selected": allow only packages listed in custom.unfree.packages
+        - "selected": allow only packages listed in internal.unfree.packages
       '';
     };
 
@@ -25,7 +25,7 @@ in
       default = [ ];
 
       description = ''
-        Package names allowed when custom.unfree.mode is "selected".
+        Package names allowed when internal.unfree.mode is "selected".
         Matched against the package's pname.
       '';
 
@@ -40,7 +40,7 @@ in
     assertions = [
       {
         assertion = cfg.mode != "selected" || cfg.packages != [ ];
-        message = "custom.unfree.packages must not be empty when custom.unfree.mode is \"selected\".";
+        message = "internal.unfree.packages must not be empty when internal.unfree.mode is \"selected\".";
       }
     ];
 

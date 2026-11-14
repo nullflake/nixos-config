@@ -6,9 +6,9 @@ cfg() {
       emulate -L zsh
       setopt pipe_fail
 
-      # Concatenates every non-hidden file of the config repo into one text
+      # Concatenates non-hidden files outside assets/images into one text
       # file. Each file is preceded by a "### <path>" header (omitted in raw
-      # mode) and binary/image files are replaced by a placeholder line.
+      # mode).
       # The result is copied to the clipboard as a file URI, or as plain
       # text in raw mode.
       local raw=0
@@ -31,21 +31,15 @@ cfg() {
 
       # Check every read/write; only publish a complete output file.
       if ! (
-        find -L "$cfg_dir" -type f -not -path '*/.*' -print0 |
+        find -L "$cfg_dir" -path "$cfg_dir/assets/images" -prune -o \
+          -type f -not -path '*/.*' -print0 |
           sort -z |
           while IFS= read -r -d '' f; do
             if (( ! raw )); then
               printf '### ~/nixos%s\n' "${f#"$cfg_dir"}" || exit 1
             fi
 
-            case "$f" in
-              *.webp|*.png|*.jpg|*.jpeg|*.ico|*.svg)
-                printf '%s\n' '[binary/image file, content omitted]' || exit 1
-                ;;
-              *)
-                command cat -- "$f" || exit 1
-                ;;
-            esac
+            command cat -- "$f" || exit 1
 
             printf '\n' || exit 1
           done

@@ -233,7 +233,7 @@ umbriel_overview_type_to_launch_enabled = true
     mru = true
 
 [theme]
-custom_palette = "tomorrow"
+custom_palette = "Tomorrow"
 mode = "dark"
 source = "custom"
 

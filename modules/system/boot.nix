@@ -17,7 +17,7 @@ let
       '';
 
   tomorrow =
-    (builtins.fromJSON (builtins.readFile ../../assets/noctalia/palettes/tomorrow.json)).dark;
+    (builtins.fromJSON (builtins.readFile ../../assets/noctalia/palettes/Tomorrow.json)).dark;
   hex = color: builtins.substring 1 6 color;
   palette =
     colors:

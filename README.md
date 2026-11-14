@@ -74,7 +74,7 @@ Stage new files with `git add <path>` before rebuilding so the flake includes th
 
 ### Noctalia
 
-Base settings and the custom `tomorrow` palette live in [assets/noctalia/](assets/noctalia/). [noctalia.nix](modules/home/noctalia.nix) installs them under `~/.config/noctalia/`.
+Base settings and the custom `Tomorrow` palette live in [assets/noctalia/](assets/noctalia/). [noctalia.nix](modules/home/noctalia.nix) installs them under `~/.config/noctalia/`.
 
 Noctalia uses [assets/images/wallpaper](assets/images/wallpaper); Limine uses a blurred version. Replace this image, keeping the extensionless filename, then rebuild and activate. Noctalia Greeter auto-syncs wallpaper changes from the GUI; its blur follows the repository's lock-screen setting, defaulting to 50%.
 

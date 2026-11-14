@@ -25,6 +25,7 @@ in
 
     extensions = [
       "emmet"
+      "just"
       "lua"
       "luau"
       "nix"

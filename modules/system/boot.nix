@@ -1,25 +1,38 @@
 { pkgs, ... }:
 
 let
-  bootWallpaper = pkgs.runCommand "blurred-wallpaper.png" {
-    nativeBuildInputs = [ pkgs.imagemagick ];
-  } ''
-    # Match Noctalia's 0.5 lock-screen blur approximately: radius 20,
-    # sigma 10, with three passes at the target resolution.
-    magick ${../../assets/images/wallpaper} \
-      -auto-orient -resize '2560x1440^' -gravity center -extent 2560x1440 \
-      -background black -alpha remove -alpha off \
-      -virtual-pixel edge -blur 20x10 -blur 20x10 -blur 20x10 \
-      -depth 8 -strip -define png:color-type=2 "PNG:$out"
-  '';
+  bootWallpaper =
+    pkgs.runCommand "blurred-wallpaper.png"
+      {
+        nativeBuildInputs = [ pkgs.imagemagick ];
+      }
+      ''
+        # Match Noctalia's 0.5 lock-screen blur approximately: radius 20,
+        # sigma 10, with three passes at the target resolution.
+        magick ${../../assets/images/wallpaper} \
+          -auto-orient -resize '2560x1440^' -gravity center -extent 2560x1440 \
+          -background black -alpha remove -alpha off \
+          -virtual-pixel edge -blur 20x10 -blur 20x10 -blur 20x10 \
+          -depth 8 -strip -define png:color-type=2 "PNG:$out"
+      '';
 
-  tomorrow = (builtins.fromJSON (builtins.readFile ../../assets/noctalia/palettes/tomorrow.json)).dark;
+  tomorrow =
+    (builtins.fromJSON (builtins.readFile ../../assets/noctalia/palettes/tomorrow.json)).dark;
   hex = color: builtins.substring 1 6 color;
-  palette = colors: builtins.concatStringsSep ";" (
-    map (name: hex colors.${name}) [
-      "black" "red" "green" "yellow" "blue" "magenta" "cyan" "white"
-    ]
-  );
+  palette =
+    colors:
+    builtins.concatStringsSep ";" (
+      map (name: hex colors.${name}) [
+        "black"
+        "red"
+        "green"
+        "yellow"
+        "blue"
+        "magenta"
+        "cyan"
+        "white"
+      ]
+    );
 in
 {
   boot.loader = {

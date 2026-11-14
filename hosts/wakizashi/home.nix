@@ -7,7 +7,6 @@
     ../../modules/home/eza.nix
     ../../modules/home/fastfetch.nix
     ../../modules/home/fd.nix
-    ../../modules/home/git.nix
     ../../modules/home/kitty.nix
     ../../modules/home/lazygit.nix
     ../../modules/home/mangohud.nix

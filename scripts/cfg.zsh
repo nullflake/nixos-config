@@ -95,14 +95,11 @@ cfg() {
       ;;
 
     diff)
-      case "$2" in
-        "") git -C "$cfg_dir" diff HEAD ;;
-        raw) git --no-pager -C "$cfg_dir" diff --color=never HEAD ;;
-        *)
-          echo "Usage: cfg diff [raw]" >&2
-          return 1
-          ;;
-      esac
+      if (( $# != 1 )); then
+        echo "Usage: cfg diff" >&2
+        return 1
+      fi
+      git --no-pager -C "$cfg_dir" diff --color=always HEAD
       ;;
 
     edit)
@@ -281,7 +278,7 @@ cfg() {
       echo "Commands:"
       echo "  copy [raw]"
       echo "  discard"
-      echo "  diff [raw]"
+      echo "  diff"
       echo "  edit"
       echo "  fmt"
       echo "  log"
@@ -314,7 +311,7 @@ _cfg_completion() {
 
   if (( CURRENT == 2 )); then
     compadd -- $subcommands
-  elif (( CURRENT == 3 )) && [[ "$words[2]" == (copy|diff) ]]; then
+  elif (( CURRENT == 3 )) && [[ "$words[2]" == copy ]]; then
     compadd -- raw
   fi
 }

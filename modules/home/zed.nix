@@ -21,9 +21,10 @@ in
     mutableUserKeymaps = true;
 
     extensions = [
-      "nix"
+      "emmet"
       "lua"
       "luau"
+      "nix"
       "toml"
     ];
 
@@ -33,30 +34,43 @@ in
     ];
 
     userSettings = {
-      format_on_save = "off";
-      telemetry = {
-        diagnostics = false;
-        metrics = false;
-      };
-      vim_mode = false;
       autosave = "on_focus_change";
-      languages.Nix.language_servers = [ "nixd" ];
+      buffer_font_family = builtins.head osConfig.fonts.fontconfig.defaultFonts.monospace;
+      languages.Nix = {
+        format_on_save = "on";
+        formatter.external = {
+          command = "${pkgs.nixfmt}/bin/nixfmt";
+        };
+        language_servers = [ "nixd" ];
+      };
       lsp = {
         # Make Nix Python packages visible inside Zed's FHS environment.
         basedpyright.settings.basedpyright.analysis.extraPaths = [
           "${pythonEnvironment}/${pkgs.python3.sitePackages}"
         ];
+        # Register Hyprland's 'hl' as a recognized global for Lua LSP
+        lua-language-server.settings.Lua.diagnostics.globals = [ "hl" ];
         nixd.binary.path = "${pkgs.nixd}/bin/nixd";
         nixd.settings = {
           nixpkgs.expr = "${hostConfig}.pkgs";
           options = {
-            nixos.expr = "${hostConfig}.options";
             home-manager.expr = "${hostConfig}.options.home-manager.users.type.getSubOptions []";
+            nixos.expr = " ${hostConfig}.options";
           };
         };
-        # Register Hyprland's 'hl' as a recognized global for Lua LSP
-        lua-language-server.settings.Lua.diagnostics.globals = [ "hl" ];
       };
+      telemetry = {
+        diagnostics = false;
+        metrics = false;
+      };
+      terminal.font_family = builtins.head osConfig.fonts.fontconfig.defaultFonts.monospace;
+      theme = {
+        dark = "Noctalia Dark";
+        light = "Noctalia Light";
+        mode = "system";
+      };
+      title_bar.show_sign_in = false;
+      ui_font_family = builtins.head osConfig.fonts.fontconfig.defaultFonts.sansSerif;
     };
   };
 }

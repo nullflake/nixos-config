@@ -30,9 +30,19 @@ The configured Zsh environment loads these helpers from [scripts/](scripts/).
 | Build for the next boot | `nixctl boot` |
 | Update dependencies, check, build and activate | `nixctl update` |
 | Activate the previous system generation | `nixctl rollback` |
+| Search current nixos-unstable packages locally | `nixctl search <query> [--limit N]` |
+| Refresh the package index in the background | `nixctl search --refresh` |
 | Stage all changes, commit and push | `cfg push` |
 
 `cfg push` opens the commit editor when creating a commit. If an upstream branch is configured, it pulls with rebase before pushing.
+
+Package search defaults to published nixos-unstable metadata independently of `flake.lock`; its versions may differ from your pinned packages. Use `nixctl search firefox --stable` for stable (currently `nixos-26.05`), and `nixctl search --refresh --stable` to refresh it manually. User timers refresh both indexes after startup, then unstable hourly and stable daily, with up to five minutes of randomized delay. Successful manual refreshes send a desktop notification naming the channel; automatic refreshes stay silent. Searches show the selected channel and last successful refresh time and work offline once its first refresh finishes. Indexes stay in `$XDG_CACHE_HOME/nix-package-search` (default `~/.cache/nix-package-search`), with stable isolated under `nixos-26.05/`; a failed refresh preserves that channel's previous index. When adopting a new stable release, update the channel in `scripts/packageIndex.py` and the service label in `modules/home/packageSearch.nix`.
+
+Searches include top-level packages and `kdePackages` by default. Use `--all` to search the entire index, `--set python313Packages` to search only that package set, or `--top-level` to exclude all nested package sets. These three filters are mutually exclusive and work with the existing index.
+
+Use `nixctl search codex --details` for package blocks with descriptions, homepages and Nixpkgs source links. After enabling this feature, refresh each channel once to store the additional metadata; regular searches also work with older indexes. GitHub links use the indexed revision when available in the release URL, otherwise the channel branch.
+
+Use `nixctl search --status` to inspect the refresh service or `nixctl search --logs` for its last 20 log entries; add `--stable` for the stable channel. These management commands run without a search query.
 
 ### Dependency updates
 

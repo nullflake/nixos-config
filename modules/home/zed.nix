@@ -5,7 +5,10 @@
   ...
 }:
 let
-  pythonEnvironment = pkgs.python3.withPackages (python: [ python.dbus-fast ]);
+  pythonEnvironment = pkgs.python3.withPackages (python: [
+    python.dbus-fast
+    python.wcwidth
+  ]);
   hostConfig =
     "(builtins.getFlake ${builtins.toJSON flakeDir})"
     + ".nixosConfigurations.${builtins.toJSON osConfig.networking.hostName}";
@@ -45,6 +48,7 @@ in
       };
       lsp = {
         # Make Nix Python packages visible inside Zed's FHS environment.
+        basedpyright.settings.python.pythonPath = "${pythonEnvironment}/bin/python3";
         basedpyright.settings.basedpyright.analysis.extraPaths = [
           "${pythonEnvironment}/${pkgs.python3.sitePackages}"
         ];

@@ -14,6 +14,7 @@
     ../../modules/home/mpv.nix
     ../../modules/home/noctalia.nix
     ../../modules/home/packages.nix
+    ../../modules/home/packageSearch.nix
     ../../modules/home/starship.nix
     ../../modules/home/swayimg.nix
     ../../modules/home/theme.nix

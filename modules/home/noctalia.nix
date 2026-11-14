@@ -1,11 +1,18 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
+let
+  configDir = ../../assets/noctalia;
+in
 {
-  xdg.configFile = {
-    "noctalia/settings.toml".source = pkgs.replaceVars ../../assets/noctalia/settings.toml {
-      wallpaper = ../../assets/images/wallpaper;
+  xdg.configFile =
+    lib.listToAttrs (
+      map (file: {
+        name = "noctalia/${lib.removePrefix "${toString configDir}/" (toString file)}";
+        value.source = file;
+      }) (lib.filesystem.listFilesRecursive configDir)
+    )
+    // {
+      "noctalia/settings.toml".source = pkgs.replaceVars (configDir + "/settings.toml") {
+        wallpaper = ../../assets/images/wallpaper;
+      };
     };
-    "noctalia/palettes/tomorrow.json".source = ../../assets/noctalia/palettes/tomorrow.json;
-    "noctalia/palettes/Ratio.json".source = ../../assets/noctalia/palettes/Ratio.json;
-    "noctalia/templates/obsidian.css".source = ../../assets/noctalia/templates/obsidian.css;
-  };
 }

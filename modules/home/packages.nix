@@ -45,7 +45,6 @@
     bat
     fzf
     jq
-    micro
     ripgrep
     (tesseract.override {
       enableLanguages = [

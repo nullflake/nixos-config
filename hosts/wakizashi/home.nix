@@ -11,6 +11,7 @@
     ../../modules/home/kitty.nix
     ../../modules/home/lazygit.nix
     ../../modules/home/mangohud.nix
+    ../../modules/home/micro.nix
     ../../modules/home/mpv.nix
     ../../modules/home/noctalia.nix
     ../../modules/home/packages.nix

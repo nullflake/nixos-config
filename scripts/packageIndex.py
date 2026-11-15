@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 import re
+import resource
 import shutil
 import sqlite3
 import subprocess
@@ -21,6 +22,58 @@ from wcwidth import wcswidth
 
 CHANNELS = {"unstable": "nixos-unstable", "stable": "nixos-26.05"}
 DEFAULT_PACKAGE_SETS = ("kdePackages",)
+ALLOWED_HOSTS = frozenset({"channels.nixos.org", "releases.nixos.org"})
+MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
+MAX_UNPACKED_BYTES = 1024 * 1024 * 1024
+
+
+def validate_download_url(url):
+    parsed = urllib.parse.urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in ALLOWED_HOSTS
+        or parsed.port not in {None, 443}
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValueError("package metadata URL must use HTTPS on an allowed NixOS host")
+
+
+class PackageRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Check every hop before connecting, not just the final response URL.
+        try:
+            validate_download_url(newurl)
+        except ValueError:
+            fp.close()
+            raise
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def open_metadata(request, timeout):
+    url = request.full_url if isinstance(request, urllib.request.Request) else request
+    validate_download_url(url)
+    opener = urllib.request.build_opener(PackageRedirectHandler())
+    return opener.open(request, timeout=timeout)
+
+
+def download_metadata(response, output):
+    length = response.headers.get("Content-Length")
+    if length is not None and int(length) > MAX_DOWNLOAD_BYTES:
+        raise ValueError("compressed package metadata exceeds the 256 MiB limit")
+    total = 0
+    while chunk := response.read(min(1024 * 1024, MAX_DOWNLOAD_BYTES - total + 1)):
+        total += len(chunk)
+        if total > MAX_DOWNLOAD_BYTES:
+            raise ValueError("compressed package metadata exceeds the 256 MiB limit")
+        output.write(chunk)
+
+
+def limit_unpacked_file():
+    # Applied only in the single-threaded decompressor child, before exec.
+    _, hard = resource.getrlimit(resource.RLIMIT_FSIZE)
+    limit = MAX_UNPACKED_BYTES if hard == resource.RLIM_INFINITY else min(hard, MAX_UNPACKED_BYTES)
+    resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
 
 
 def supports_color(stream):
@@ -221,6 +274,63 @@ def build_index(catalog, target, source):
     return len(rows)
 
 
+def reuse_index(index, source):
+    """Reuse a complete index only when its immutable release URL matches."""
+    if not index.is_file() or not re.search(
+        r"\.[0-9a-f]{7,40}/packages\.json\.br$", urllib.parse.urlsplit(source).path
+    ):
+        return False
+    try:
+        with closing(sqlite3.connect(index.as_uri() + "?mode=rw", uri=True)) as db, db:
+            metadata = dict(db.execute("SELECT key, value FROM metadata"))
+            columns = {row[1] for row in db.execute("PRAGMA table_info(packages)")}
+            required = {"attr", "version", "description", "searchable", "homepages", "position"}
+            if (
+                metadata.get("source") != source
+                or not required.issubset(columns)
+                or not db.execute("SELECT 1 FROM packages LIMIT 1").fetchone()
+            ):
+                return False
+            # A successful check confirms freshness even if the channel has not moved.
+            db.execute(
+                "INSERT OR REPLACE INTO metadata VALUES ('refreshed_at', ?)",
+                (datetime.now(UTC).isoformat(timespec="seconds"),),
+            )
+        release = PurePosixPath(urllib.parse.urlsplit(source).path).parent.name
+        print(f"Already up to date: {release}. No download needed.")
+        return True
+    except sqlite3.Error:
+        # Missing/obsolete schemas and damaged indexes need a full rebuild.
+        return False
+
+
+def check_refresh(channel="unstable"):
+    """Return 0 when current, 10 when a background refresh is needed."""
+    directory = cache_dir(channel)
+    directory.mkdir(parents=True, exist_ok=True)
+    with (directory / "refresh.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("Package index refresh is already running.", file=sys.stderr)
+            return 75
+        url = f"https://channels.nixos.org/{CHANNELS[channel]}/packages.json.br"
+        try:
+            response = open_metadata(
+                urllib.request.Request(url, method="HEAD"), timeout=15
+            )
+        except urllib.error.HTTPError as error:
+            if error.code not in {405, 501}:
+                raise
+            # Some servers do not implement HEAD; never read the fallback body.
+            error.close()
+            response = open_metadata(url, timeout=15)
+        with response:
+            if reuse_index(directory / "index.sqlite", response.geturl()):
+                return 0
+    return 10
+
+
 def refresh(channel="unstable"):
     directory = cache_dir(channel)
     channel_name = CHANNELS[channel]
@@ -238,12 +348,13 @@ def refresh(channel="unstable"):
             work = Path(work)
             compressed = work / "packages.json.br"
             with (
-                urllib.request.urlopen(source_url, timeout=120) as response,
+                open_metadata(source_url, timeout=120) as response,
                 compressed.open("wb") as output,
             ):
                 source = response.geturl()
-                while chunk := response.read(1024 * 1024):
-                    output.write(chunk)
+                if reuse_index(directory / "index.sqlite", source):
+                    return 0
+                download_metadata(response, output)
             unpacked = work / "packages.json"
             with unpacked.open("wb") as output:
                 subprocess.run(
@@ -251,6 +362,7 @@ def refresh(channel="unstable"):
                     stdout=output,
                     check=True,
                     timeout=120,
+                    preexec_fn=limit_unpacked_file,
                 )
             with unpacked.open() as input_file:
                 catalog = json.load(input_file)
@@ -417,6 +529,10 @@ def package_set_name(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    check_parser = commands.add_parser(
+        "check-refresh", help="check whether an index refresh is needed without downloading"
+    )
+    check_parser.add_argument("--stable", action="store_true")
     refresh_parser = commands.add_parser(
         "refresh", help="download channel metadata and atomically rebuild the index"
     )
@@ -439,7 +555,7 @@ def main():
             "  nixctl search --status --stable     stable refresh service status\n"
             "  nixctl search --logs                last 20 refresh log entries\n"
             "  nixctl search --logs --stable       last 20 stable refresh log entries\n\n"
-            "Automatic refresh: unstable hourly, stable daily; both after startup.\n"
+            "Automatic refresh: both channels daily and after startup.\n"
             "--all, --set and --top-level are mutually exclusive.\n\n"
             "Examples:\n"
             "  nixctl search firefox\n"
@@ -488,6 +604,8 @@ def main():
     args = parser.parse_args()
     channel = "stable" if args.stable else "unstable"
     try:
+        if args.command == "check-refresh":
+            return check_refresh(channel)
         return (
             refresh(channel)
             if args.command == "refresh"

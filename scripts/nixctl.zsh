@@ -106,6 +106,17 @@ nixctl() {
         fi
         case "$search_action" in
           --refresh)
+            local -a check_args
+            check_args=(check-refresh)
+            [[ "$search_channel" == stable ]] && check_args+=(--stable)
+            local check_rc
+            if package-index "${check_args[@]}"; then
+              return 0
+            else
+              check_rc=$?
+            fi
+            # Only a newer release or a missing/obsolete index needs a refresh.
+            (( check_rc == 10 )) || return "$check_rc"
             # The notification unit waits for the shared refresh to succeed.
             systemctl --user start --no-block "${search_service%.service}-notify.service" || return $?
             echo "Refreshing the $search_channel package index in the background..."

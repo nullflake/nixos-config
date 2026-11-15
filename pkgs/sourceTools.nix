@@ -3,6 +3,7 @@
   runCommand,
   writeShellApplication,
   brotli,
+  systemd,
   git,
   libnotify,
   imagemagick,
@@ -35,7 +36,7 @@ let
     };
 in
 {
-  packageIndex = command "package-index" "packageIndex.py" [ brotli ] "";
+  packageIndex = command "package-index" "packageIndex.py" [ brotli systemd ] "";
   livecheck = command "nix-livecheck" "livecheck.py" [
     git
     libnotify

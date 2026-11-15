@@ -101,35 +101,17 @@ nixctl() {
     search)
       local search_action="$2"
       [[ "$search_action" == "--stable" ]] && search_action="$3"
-      if [[ "$search_action" == "--refresh" || "$search_action" == "--status" || "$search_action" == "--logs" ]]; then
-        local search_service=package-search-refresh.service
-        local search_channel=unstable
+      if [[ "$search_action" == "--status" || "$search_action" == "--logs" ]]; then
+        local search_service='package-search-refresh@*.service'
         if (( $# == 3 )) && [[ "$2" == "--stable" || "$3" == "--stable" ]]; then
-          search_service=package-search-refresh-stable.service
-          search_channel=stable
+          search_service='package-search-refresh-stable@*.service'
         elif (( $# != 2 )) || [[ "$2" != "$search_action" ]]; then
-          echo "Usage: nixctl search <--refresh | --status | --logs> [--stable]" >&2
+          echo "Usage: nixctl search <--status | --logs> [--stable]" >&2
           return 1
         fi
         case "$search_action" in
-          --refresh)
-            local -a check_args
-            check_args=(check-refresh)
-            [[ "$search_channel" == stable ]] && check_args+=(--stable)
-            local check_rc
-            if package-index "${check_args[@]}"; then
-              return 0
-            else
-              check_rc=$?
-            fi
-            # Only a newer release or a missing/obsolete index needs a refresh.
-            (( check_rc == 10 )) || return "$check_rc"
-            # The notification unit waits for the shared refresh to succeed.
-            systemctl --user start --no-block "${search_service%.service}-notify.service" || return $?
-            echo "Refreshing the $search_channel package index in the background..."
-            ;;
           --status)
-            systemctl --user status --no-pager "$search_service"
+            systemctl --user list-units --all --no-pager "$search_service"
             ;;
           --logs)
             journalctl --user -u "$search_service" -n 20 --no-pager
@@ -189,9 +171,9 @@ nixctl() {
       echo "  livecheck [--details]"
       echo "    Check flake inputs and independent pins without updating"
       echo "  rollback"
-      echo "  search <query> [--stable] [--details] [--limit N] [--all | --set <set> | --top-level]"
+      echo "  search <query> [--offline] [--stable] [--details] [--limit N] [--all | --set <set> | --top-level]"
       echo "    Default scope: top-level packages + kdePackages"
-      echo "  search <--refresh | --status | --logs> [--stable]"
+      echo "  search <--status | --logs> [--stable]"
       echo "  switch"
       echo "  update"
       echo "  verify"
@@ -220,17 +202,17 @@ _nixctl_completion() {
       ;;
     search)
       if (( CURRENT == 3 )); then
-        compadd -- --refresh --status --logs --stable --details --limit --all --set --top-level
-      elif (( ${words[(Ie)--refresh]} || ${words[(Ie)--status]} || ${words[(Ie)--logs]} )); then
+        compadd -- --offline --status --logs --stable --details --limit --all --set --top-level
+      elif (( ${words[(Ie)--status]} || ${words[(Ie)--logs]} )); then
         compadd -- --stable
       else
         case "$words[CURRENT-1]" in
           --set|--limit) return ;;
         esac
         if [[ "$words[3]" == "--stable" && CURRENT -eq 4 ]]; then
-          compadd -- --refresh --status --logs --details --limit --all --set --top-level
+          compadd -- --offline --status --logs --details --limit --all --set --top-level
         else
-          compadd -- --stable --details --limit --all --set --top-level
+          compadd -- --offline --stable --details --limit --all --set --top-level
         fi
       fi
       ;;

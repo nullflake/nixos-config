@@ -242,11 +242,39 @@ def build_index(catalog, target, source):
         db.executemany(
             "INSERT INTO metadata VALUES (?, ?)",
             [
-                ("refreshed_at", datetime.now(UTC).isoformat(timespec="seconds")),
+                ("indexed_at", datetime.now(UTC).isoformat(timespec="seconds")),
+                ("checked_at", datetime.now(UTC).isoformat(timespec="seconds")),
                 ("source", source),
             ],
         )
     return len(rows)
+
+
+def release_source(channel, release):
+    """Accept only release names that are safe systemd instances and URL segments."""
+    if not re.fullmatch(r"nixos-[0-9][0-9A-Za-z.-]*\.[0-9a-f]{7,40}", release):
+        raise ValueError("invalid package metadata release")
+    branch = (
+        "unstable" if channel == "unstable" else CHANNELS[channel].removeprefix("nixos-")
+    )
+    if channel == "stable" and not release.startswith(f"nixos-{branch}."):
+        raise ValueError("package release does not belong to the selected stable channel")
+    return f"https://releases.nixos.org/nixos/{branch}/{release}/packages.json.br"
+
+
+def channel_source(channel):
+    url = f"https://channels.nixos.org/{CHANNELS[channel]}/packages.json.br"
+    source = resolve_metadata_url(url, opener=open_metadata)
+    parts = urllib.parse.urlsplit(source).path.split("/")
+    release = parts[-2] if len(parts) >= 2 else ""
+    if release_source(channel, release) != source:
+        raise ValueError("channel did not resolve to the selected channel's immutable release")
+    return source, release
+
+
+def refresh_unit(channel, release):
+    suffix = "-stable" if channel == "stable" else ""
+    return f"package-search-refresh{suffix}@{release}.service"
 
 
 def reuse_index(index, source):
@@ -256,7 +284,7 @@ def reuse_index(index, source):
     ):
         return False
     try:
-        with closing(sqlite3.connect(index.as_uri() + "?mode=rw", uri=True)) as db, db:
+        with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
             metadata = dict(db.execute("SELECT key, value FROM metadata"))
             columns = {row[1] for row in db.execute("PRAGMA table_info(packages)")}
             required = {"attr", "version", "description", "searchable", "homepages", "position"}
@@ -266,59 +294,79 @@ def reuse_index(index, source):
                 or not db.execute("SELECT 1 FROM packages LIMIT 1").fetchone()
             ):
                 return False
-            # A successful check confirms freshness even if the channel has not moved.
-            db.execute(
-                "INSERT OR REPLACE INTO metadata VALUES ('refreshed_at', ?)",
-                (datetime.now(UTC).isoformat(timespec="seconds"),),
-            )
-        release = PurePosixPath(urllib.parse.urlsplit(source).path).parent.name
-        print(f"Already up to date: {release}. No download needed.")
         return True
     except sqlite3.Error:
         # Missing/obsolete schemas and damaged indexes need a full rebuild.
         return False
 
 
-def check_refresh(channel="unstable"):
-    """Return 0 when current, 10 when a background refresh is needed."""
+def confirm_index(channel, source):
+    """Record verification without racing an atomic replacement by a worker."""
     directory = cache_dir(channel)
-    directory.mkdir(parents=True, exist_ok=True)
+    index = directory / "index.sqlite"
+    if not index.is_file():
+        return False
     with (directory / "refresh.lock").open("a") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            print("Package index refresh is already running.", file=sys.stderr)
-            return 75
-        url = f"https://channels.nixos.org/{CHANNELS[channel]}/packages.json.br"
-        source = resolve_metadata_url(url, opener=open_metadata)
-        if reuse_index(directory / "index.sqlite", source):
-            return 0
-    return 10
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if not reuse_index(index, source):
+            return False
+        with closing(sqlite3.connect(index.as_uri() + "?mode=rw", uri=True)) as db, db:
+            db.execute(
+                "INSERT OR REPLACE INTO metadata VALUES ('checked_at', ?)",
+                (datetime.now(UTC).isoformat(timespec="seconds"),),
+            )
+    return True
 
 
-def refresh(channel="unstable"):
+def ensure_index(channel="unstable"):
+    """Verify on every invocation and wait for the exact observed release."""
+    source, release = channel_source(channel)
+    if not confirm_index(channel, source):
+        print(
+            f"Updating {CHANNELS[channel]} package index to {release}...",
+            file=sys.stderr,
+        )
+        unit = refresh_unit(channel, release)
+        result = subprocess.run(
+            ["systemctl", "--user", "start", "--", unit],
+            stdout=sys.stderr,
+            timeout=960,
+            check=False,
+        )
+        if result.returncode:
+            raise ValueError(
+                "package index update failed; run 'nixctl search --logs"
+                + (" --stable" if channel == "stable" else "")
+                + "' for details. Use --offline explicitly to search the saved index"
+            )
+        if not confirm_index(channel, source):
+            raise ValueError(
+                "package index does not match the checked release; retry the search"
+            )
+    return source
+
+
+def refresh(channel="unstable", release=None):
     directory = cache_dir(channel)
     channel_name = CHANNELS[channel]
-    source_url = f"https://channels.nixos.org/{channel_name}/packages.json.br"
+    source = release_source(channel, release) if release else channel_source(channel)[0]
     directory.mkdir(parents=True, exist_ok=True)
     with (directory / "refresh.lock").open("a") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            print("Package index refresh is already running.", file=sys.stderr)
-            return 75
+        # Other release workers for this channel must finish before replacing it.
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if reuse_index(directory / "index.sqlite", source):
+            return 0
 
         # Build on the same filesystem so replacement is atomic for active readers.
         with tempfile.TemporaryDirectory(prefix="refresh-", dir=directory) as work:
             work = Path(work)
             compressed = work / "packages.json.br"
             with (
-                open_metadata(source_url, timeout=120) as response,
+                open_metadata(source, timeout=120) as response,
                 compressed.open("wb") as output,
             ):
-                source = response.geturl()
-                if reuse_index(directory / "index.sqlite", source):
-                    return 0
+                if response.geturl() != source:
+                    raise ValueError("immutable package metadata redirected to a different release")
                 download_metadata(response, output)
             unpacked = work / "packages.json"
             with unpacked.open("wb") as output:
@@ -346,20 +394,21 @@ def search(
     all_packages=False,
     channel="unstable",
     details=False,
+    offline=False,
 ):
     index = cache_dir(channel) / "index.sqlite"
-    refresh_command = "nixctl search --refresh" + (
-        " --stable" if channel == "stable" else ""
-    )
-    if not index.is_file():
-        raise ValueError(
-            f"no {CHANNELS[channel]} package index yet; run '{refresh_command}' and wait for the service to finish"
-        )
     terms = " ".join(queries).casefold().split()
     if not terms:
         raise ValueError("provide a non-empty search query")
+    expected_source = None if offline else ensure_index(channel)
+    if not index.is_file():
+        raise ValueError(
+            f"no saved {CHANNELS[channel]} index; run a search without --offline first"
+        )
     with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
         metadata = dict(db.execute("SELECT key, value FROM metadata"))
+        if expected_source is not None and metadata.get("source") != expected_source:
+            raise ValueError("package index changed during verification; retry the search")
         fields = "attr, version, description"
         if details:
             columns = {
@@ -367,22 +416,34 @@ def search(
             }
             if not {"homepages", "position"}.issubset(columns):
                 raise ValueError(
-                    f"this index does not contain package details yet; run '{refresh_command}' and wait for completion"
+                    "saved index has no package details; run a search without --offline to update it"
                 )
             fields += ", homepages, position"
-        refreshed = datetime.fromisoformat(metadata["refreshed_at"])
-        age = datetime.now(UTC) - refreshed
-        stale = (
-            f" (older than 48 hours; run '{refresh_command}')"
-            if age.total_seconds() > 172800
-            else ""
-        )
         use_color = supports_color(sys.stderr)
         reset = "\033[0m" if use_color else ""
         accent = "\033[1;36m" if use_color else ""
         muted = "\033[2m" if use_color else ""
-        warning = "\033[1;33m" if use_color else ""
-        timestamp = refreshed.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+        indexed = metadata.get("indexed_at")
+        timestamp = (
+            datetime.fromisoformat(indexed).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+            if indexed
+            else "unknown (legacy index)"
+        )
+        revision = re.search(
+            r"\.([0-9a-f]{7,40})/packages\.json\.br$", metadata.get("source", "")
+        )
+        revision = revision.group(1) if revision else "unknown"
+        checked = metadata.get("checked_at")
+        checked = (
+            datetime.fromisoformat(checked).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+            if checked
+            else "unknown"
+        )
+        check_label = (
+            f"offline; freshness not checked (last check: {checked})"
+            if offline
+            else f"verified  {checked}"
+        )
         header_width = max(1, shutil.get_terminal_size().columns)
 
         def header_line(text, style):
@@ -397,9 +458,12 @@ def search(
             "\n"
             + header_line(f"[ {CHANNELS[channel]} ]", accent)
             + "\n"
-            + header_line(f"refreshed  {timestamp}", muted)
+            + header_line(f"revision  {revision}", muted)
             + "\n"
-            + (header_line(stale.strip(), warning) + "\n" if stale else "")
+            + header_line(f"indexed   {timestamp}", muted)
+            + "\n"
+            + header_line(check_label, muted)
+            + "\n"
             + f"{muted}{'─' * min(60, header_width)}{reset}",
             file=sys.stderr,
         )
@@ -494,10 +558,6 @@ def package_set_name(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    check_parser = commands.add_parser(
-        "check-refresh", help="check whether an index refresh is needed without downloading"
-    )
-    check_parser.add_argument("--stable", action="store_true")
     refresh_parser = commands.add_parser(
         "refresh", help="download channel metadata and atomically rebuild the index"
     )
@@ -505,6 +565,9 @@ def main():
         "--stable",
         action="store_true",
         help=f"refresh {CHANNELS['stable']} instead of unstable",
+    )
+    refresh_parser.add_argument(
+        "--release", help="internal: exact published release to index"
     )
     search_parser = commands.add_parser(
         "search",
@@ -514,13 +577,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Index management (without a search query; optional --stable):\n"
-            "  nixctl search --refresh             unstable\n"
-            f"  nixctl search --refresh --stable    stable ({CHANNELS['stable']})\n\n"
             "  nixctl search --status              refresh service status\n"
             "  nixctl search --status --stable     stable refresh service status\n"
             "  nixctl search --logs                last 20 refresh log entries\n"
             "  nixctl search --logs --stable       last 20 stable refresh log entries\n\n"
-            "Automatic refresh: both channels daily and after startup.\n"
+            "Each search verifies the published channel release and waits for updates.\n"
+            "Use --offline explicitly to search saved metadata without verification.\n"
             "--all, --set and --top-level are mutually exclusive.\n\n"
             "Examples:\n"
             "  nixctl search firefox\n"
@@ -530,6 +592,11 @@ def main():
             "  nixctl search requests --set python313Packages\n"
             "  nixctl search firefox --top-level"
         ),
+    )
+    search_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="search saved metadata without checking freshness",
     )
     search_parser.add_argument("query", nargs="+", help="one or more search terms")
     search_parser.add_argument(
@@ -569,10 +636,8 @@ def main():
     args = parser.parse_args()
     channel = "stable" if args.stable else "unstable"
     try:
-        if args.command == "check-refresh":
-            return check_refresh(channel)
         return (
-            refresh(channel)
+            refresh(channel, args.release)
             if args.command == "refresh"
             else search(
                 args.query,
@@ -582,6 +647,7 @@ def main():
                 args.all_packages,
                 channel,
                 args.details,
+                args.offline,
             )
         )
     except (

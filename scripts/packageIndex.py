@@ -18,43 +18,18 @@ from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
+from upstream import NIXOS_HOSTS, open_metadata, resolve_metadata_url, validate_url
 from wcwidth import wcswidth
 
 CHANNELS = {"unstable": "nixos-unstable", "stable": "nixos-26.05"}
 DEFAULT_PACKAGE_SETS = ("kdePackages",)
-ALLOWED_HOSTS = frozenset({"channels.nixos.org", "releases.nixos.org"})
+ALLOWED_HOSTS = NIXOS_HOSTS
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
 MAX_UNPACKED_BYTES = 1024 * 1024 * 1024
 
 
 def validate_download_url(url):
-    parsed = urllib.parse.urlsplit(url)
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname not in ALLOWED_HOSTS
-        or parsed.port not in {None, 443}
-        or parsed.username is not None
-        or parsed.password is not None
-    ):
-        raise ValueError("package metadata URL must use HTTPS on an allowed NixOS host")
-
-
-class PackageRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        # Check every hop before connecting, not just the final response URL.
-        try:
-            validate_download_url(newurl)
-        except ValueError:
-            fp.close()
-            raise
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
-def open_metadata(request, timeout):
-    url = request.full_url if isinstance(request, urllib.request.Request) else request
-    validate_download_url(url)
-    opener = urllib.request.build_opener(PackageRedirectHandler())
-    return opener.open(request, timeout=timeout)
+    validate_url(url, ALLOWED_HOSTS)
 
 
 def download_metadata(response, output):
@@ -315,19 +290,9 @@ def check_refresh(channel="unstable"):
             print("Package index refresh is already running.", file=sys.stderr)
             return 75
         url = f"https://channels.nixos.org/{CHANNELS[channel]}/packages.json.br"
-        try:
-            response = open_metadata(
-                urllib.request.Request(url, method="HEAD"), timeout=15
-            )
-        except urllib.error.HTTPError as error:
-            if error.code not in {405, 501}:
-                raise
-            # Some servers do not implement HEAD; never read the fallback body.
-            error.close()
-            response = open_metadata(url, timeout=15)
-        with response:
-            if reuse_index(directory / "index.sqlite", response.geturl()):
-                return 0
+        source = resolve_metadata_url(url, opener=open_metadata)
+        if reuse_index(directory / "index.sqlite", source):
+            return 0
     return 10
 
 

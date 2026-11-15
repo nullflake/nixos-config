@@ -8,19 +8,9 @@
 #   GITHUB_TOKEN=...          avoid API rate limits
 #   HELIUM_REQUIRE_DIGEST=1   abort update if GitHub publishes no sha256 digest
 
-_helium_repo_api="https://api.github.com/repos/imputnet/helium-linux/releases"
-
 # Print release JSON. Uses tag $1 if given, otherwise the latest release.
 _helium_release_json() {
-  local url="$_helium_repo_api/latest"
-  [[ -n "$1" ]] && url="$_helium_repo_api/tags/$1"
-
-  local -a hdr=(-H "Accept: application/vnd.github+json")
-  [[ -n "${GITHUB_TOKEN:-}" ]] && hdr+=(-H "Authorization: Bearer $GITHUB_TOKEN")
-
-  curl --silent --show-error --fail --location \
-    --connect-timeout 10 --max-time 30 \
-    "${hdr[@]}" "$url"
+  nix-upstream helium-release "$@"
 }
 
 helium() {
@@ -72,7 +62,7 @@ helium() {
       fi
 
       local dep
-      for dep in jq curl nix sha256sum; do
+      for dep in jq curl nix sha256sum nix-upstream; do
         if ! (( $+commands[$dep] )); then
           echo "Error: required command not found: $dep" >&2
           return 1

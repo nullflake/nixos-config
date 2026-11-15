@@ -88,6 +88,13 @@ nixctl() {
     list)
       sudo nix-env --list-generations --profile /nix/var/nix/profiles/system | cat
       ;;
+    livecheck)
+      if [[ -n "$FLAKE" ]]; then
+        nix-livecheck --flake "$FLAKE" "${@:2}"
+      else
+        nix-livecheck "${@:2}"
+      fi
+      ;;
     rollback)
       sudo nixos-rebuild switch --rollback
       ;;
@@ -179,6 +186,8 @@ nixctl() {
       echo "  diff"
       echo "  find <query> [-fzf]"
       echo "  list"
+      echo "  livecheck [--details]"
+      echo "    Check flake inputs and independent pins without updating"
       echo "  rollback"
       echo "  search <query> [--stable] [--details] [--limit N] [--all | --set <set> | --top-level]"
       echo "    Default scope: top-level packages + kdePackages"
@@ -205,6 +214,10 @@ _nixctl_completion() {
       find_opts=(-fzf)
       compadd $find_opts
       ;;
+    livecheck)
+      [[ "$words[CURRENT-1]" == --flake ]] && { _files -/; return; }
+      compadd -- --help --flake --details
+      ;;
     search)
       if (( CURRENT == 3 )); then
         compadd -- --refresh --status --logs --stable --details --limit --all --set --top-level
@@ -222,7 +235,7 @@ _nixctl_completion() {
       fi
       ;;
     *)
-      subcommands=(boot clean diff find list rollback search switch update verify)
+      subcommands=(boot clean diff find list livecheck rollback search switch update verify)
       compadd $subcommands
       ;;
   esac

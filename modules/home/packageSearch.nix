@@ -1,6 +1,6 @@
 { lib, pkgs, ... }:
 let
-  python = pkgs.python3.withPackages (ps: [ ps.wcwidth ]);
+  tools = pkgs.callPackage ../../pkgs/sourceTools.nix { };
   notificationIcon =
     pkgs.runCommand "nix-package-search-icon.png"
       {
@@ -9,16 +9,7 @@ let
       ''
         magick ${../../assets/images/nixosLogo1.webp} -resize 128x128 PNG:$out
       '';
-  packageIndex = pkgs.writeShellApplication {
-    name = "package-index";
-    runtimeInputs = [
-      python
-      pkgs.brotli
-    ];
-    text = ''
-      exec python3 ${../../scripts/packageIndex.py} "$@"
-    '';
-  };
+  packageIndex = tools.packageIndex;
   channels = {
     package-search-refresh = {
       label = "nixos-unstable";

@@ -29,6 +29,7 @@ The configured Zsh environment loads these helpers from [scripts/](scripts/).
 | Build and activate local changes | `nixctl switch` |
 | Build for the next boot | `nixctl boot` |
 | Update dependencies, check, build and activate | `nixctl update` |
+| Check flake inputs and independent pins without updating | `nixctl livecheck` |
 | Activate the previous system generation | `nixctl rollback` |
 | Search current nixos-unstable packages locally | `nixctl search <query> [--limit N]` |
 | Refresh the package index in the background | `nixctl search --refresh` |
@@ -47,6 +48,14 @@ Use `nixctl search codex --details` for package blocks with descriptions, homepa
 Use `nixctl search --status` to inspect the refresh service or `nixctl search --logs` for its last 20 log entries; add `--stable` for the stable channel. These management commands run without a search query.
 
 ### Dependency updates
+
+`nixctl livecheck` discovers direct inputs from `flake.lock`, follows their configured branches or tags, and checks the Helium pin. Dependencies internal to those inputs are not checked separately. It reports commit differences where available, explicit revision pins, and sources it cannot check. The report compares checkout pins, not the running system. `GITHUB_TOKEN` is optional and can help with GitHub API rate limits.
+
+Each livecheck also sends an English desktop notification, including when all sources are current or a check fails. Notifications use the NixOS logo and show only a status title, without source details or commands.
+
+The report lists nixpkgs first, then all other sources alphabetically, including Helium. Status and change details use separate columns; `nixctl livecheck --details` also shows revisions and source references.
+
+If GitHub reports an exhausted quota, the check skips further GitHub requests for that run and shows when to retry. Access errors are reported separately; `GITHUB_TOKEN` must contain only the token itself, without whitespace.
 
 `nixctl update` updates `flake.lock` and tries to refresh the Helium pin in `pkgs/helium.json`. It then runs `nix flake check --no-build` before building and activating with `nh os switch`.
 

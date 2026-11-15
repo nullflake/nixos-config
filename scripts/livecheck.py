@@ -10,6 +10,7 @@ import sys
 import textwrap
 import urllib.parse
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from upstream import HELIUM_REPOSITORY, Upstream, release_revision, same_revision
@@ -20,6 +21,7 @@ class Result:
     name: str
     status: str
     detail: str
+    compact: str | None = None
 
 
 def discover_inputs(lock):
@@ -117,9 +119,27 @@ def check_input(client, name, node):
             raise ValueError("missing locked revision")
         ref = source.get("ref")
         latest = client.github_revision(repository, ref)
-        return compare_revision(
+        result = compare_revision(
             client, name, repository, current, latest, ref or "default branch"
         )
+        if repository.lower() == "nixos/nixpkgs" and result.status == "update":
+            result.compact = "new revision"
+            latest_date = client.github_revision_date(repository, latest)
+            timestamp = locked.get("lastModified")
+            if type(timestamp) is int and isinstance(latest_date, str):
+                try:
+                    current_date = (
+                        datetime.fromtimestamp(timestamp, UTC).date().isoformat()
+                    )
+                except (ValueError, OverflowError, OSError):
+                    pass
+                else:
+                    result.compact = (
+                        f"{current_date} → {latest_date}"
+                        if current_date != latest_date
+                        else f"new revision · {latest_date}"
+                    )
+        return result
     if kind == "git":
         if not current:
             raise ValueError("missing locked revision")
@@ -223,6 +243,8 @@ def notify_results(results, icon):
 
 def result_detail(result):
     """Keep revisions out of the compact report without hiding failures."""
+    if result.compact is not None:
+        return result.compact
     detail = clean(result.detail).replace(" -> ", " → ")
     if result.status in {"current", "local"}:
         return ""
@@ -369,7 +391,7 @@ def main():
     parser.add_argument(
         "--details",
         action="store_true",
-        help="also show pinned revisions and source references",
+        help="also show revisions, source references and nixpkgs commit counts",
     )
     parser.add_argument(
         "--notify-icon",

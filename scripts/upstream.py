@@ -143,6 +143,7 @@ class Upstream:
         # Only reuse queries during this invocation; no stale on-disk answers.
         self.answers = {}
         self.github_blocked = None
+        self.revision_dates: dict[tuple[str, str], str] = {}
 
     def cached(self, key, query):
         if key not in self.answers:
@@ -204,10 +205,27 @@ class Upstream:
 
     def github_revision(self, repository, ref=None):
         target = urllib.parse.quote(ref or "HEAD", safe="")
-        value = self.github(repository, f"commits/{target}").get("sha", "")
+        metadata = self.github(repository, f"commits/{target}")
+        value = metadata.get("sha", "")
         if not re.fullmatch(r"[0-9a-f]{40}", value):
             raise ValueError("missing GitHub commit SHA")
+        commit = metadata.get("commit")
+        committer = commit.get("committer") if isinstance(commit, dict) else None
+        timestamp = committer.get("date") if isinstance(committer, dict) else None
+        if isinstance(timestamp, str):
+            try:
+                date = datetime.fromisoformat(timestamp)
+                if date.tzinfo is not None:
+                    self.revision_dates[(repository.lower(), value)] = (
+                        date.astimezone(UTC).date().isoformat()
+                    )
+            except (ValueError, OverflowError):
+                pass
         return value
+
+    def github_revision_date(self, repository, revision):
+        """Read an already fetched commit date; never make another API request."""
+        return self.revision_dates.get((repository.lower(), revision))
 
     def compare(self, repository, current, latest):
         base = urllib.parse.quote(current, safe="")

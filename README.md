@@ -53,7 +53,7 @@ Use `nixctl search --status` to inspect the refresh service or `nixctl search --
 
 Each livecheck also sends an English desktop notification, including when all sources are current or a check fails. Notifications use the NixOS logo and show only a status title, without source details or commands.
 
-The report lists nixpkgs first, then all other sources alphabetically, including Helium. Status and change details use separate columns; `nixctl livecheck --details` also shows revisions and source references.
+The report lists nixpkgs first, then all other sources alphabetically, including Helium. Status and change details use separate columns. Nixpkgs updates show revision dates in UTC when available, with a plain revision-change message otherwise; `nixctl livecheck --details` also shows commit counts, revisions and source references.
 
 If GitHub reports an exhausted quota, the check skips further GitHub requests for that run and shows when to retry. Access errors are reported separately; `GITHUB_TOKEN` must contain only the token itself, without whitespace.
 

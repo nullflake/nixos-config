@@ -37,7 +37,7 @@ let
 
   guardPython = pkgs.python3.withPackages (python: [ python.dbus-fast ]);
   vpnGuard = pkgs.writeShellScript "zapretVpnMonitor" ''
-    exec ${guardPython}/bin/python3 ${../../scripts/zapretVpnMonitor.py} "$@"
+    exec ${guardPython}/bin/python3 ${../../scripts/services/zapretVpnMonitor.py} "$@"
   '';
 in
 {

@@ -81,7 +81,7 @@
 let
   pname = "helium";
 
-  # Version and hash are maintained by helium update (scripts/helium.zsh).
+  # Version and hash are maintained by helium update (scripts/zsh/helium.zsh).
   sources = builtins.fromJSON (builtins.readFile ./helium.json);
   version = sources.version;
 

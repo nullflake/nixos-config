@@ -1,5 +1,5 @@
 fn() {
-  local target_dir="${1:-$FLAKE/scripts}"
+  local target_dir="${1:-$FLAKE/scripts/zsh}"
   if [[ ! -d "$target_dir" ]]; then
     echo "fn: directory not found -> $target_dir" >&2
     return 1

@@ -49,7 +49,7 @@ Start a new login session to load the shell helpers.
 
 ## Usage and maintenance
 
-The [nixctl](scripts/nixctl.zsh) Zsh function provides the following subcommands
+The [nixctl](scripts/zsh/nixctl.zsh) Zsh function provides the following subcommands
 in the configured user's interactive shell. It uses the checkout and requests
 sudo when needed.
 

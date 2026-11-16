@@ -8,7 +8,7 @@
       Both includes live in ~/.config/kitty and are generated outside Nix:
       - themes/noctalia.conf is written by Noctalia's kitty template
         (colors follow the shell theme).
-      - opacity.conf is written by `kitty opacity` (scripts/kitty.zsh).
+      - opacity.conf is written by `kitty opacity` (scripts/zsh/kitty.zsh).
     */
     extraConfig = ''
       include themes/noctalia.conf

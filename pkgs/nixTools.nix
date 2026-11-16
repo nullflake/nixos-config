@@ -19,11 +19,11 @@ let
         magick ${../assets/images/nixosLogo1.webp} -resize 128x128 PNG:$out
       '';
   # Keep module filenames together so all entry points import the same code.
-  scripts = runCommand "nix-source-tools" { } ''
+  scripts = runCommand "nix-tools" { } ''
     mkdir -p $out
-    cp ${../scripts/upstream.py} $out/upstream.py
-    cp ${../scripts/livecheck.py} $out/livecheck.py
-    cp ${../scripts/packageIndex.py} $out/packageIndex.py
+    cp ${../scripts/nixTools/upstream.py} $out/upstream.py
+    cp ${../scripts/nixTools/livecheck.py} $out/livecheck.py
+    cp ${../scripts/nixTools/packageIndex.py} $out/packageIndex.py
   '';
   command =
     name: script: dependencies: arguments:

@@ -1,4 +1,4 @@
-# Command reference for the shell functions in scripts/*.zsh (help only)
+# Command reference for the shell functions in scripts/zsh/*.zsh (help only)
 
 # Show all reference guides
 default:

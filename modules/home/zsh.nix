@@ -1,6 +1,6 @@
 { lib, pkgs, ... }:
 let
-  zshDir = ../../scripts;
+  zshDir = ../../scripts/zsh;
 
   /*
     Only regular *.zsh files (skips directories, .swp, .md, etc.).
@@ -54,7 +54,7 @@ in
       # Prevent paste errors with '#' comments
       setopt INTERACTIVE_COMMENTS
 
-      # Checked modules from /scripts (alphabetical order)
+      # Checked modules from scripts/zsh (alphabetical order)
       ${sourceLines}
     '';
   };

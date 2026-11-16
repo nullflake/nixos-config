@@ -39,7 +39,7 @@ let
     ];
     text = ''
       export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
-      exec python3 ${../../scripts/backup.py} --config ${settings} "$@"
+      exec python3 ${../../scripts/services/backup.py} --config ${settings} "$@"
     '';
   };
 in

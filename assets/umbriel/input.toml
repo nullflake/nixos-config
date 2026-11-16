@@ -23,4 +23,4 @@ scroll_wheel_step = 60
 enabled = true
 
 [input.focus]
-follows_mouse = true
+follows_mouse = "sloppy"

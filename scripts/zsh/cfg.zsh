@@ -126,6 +126,15 @@ cfg() {
       ;;
 
     push)
+      echo "Formatting Nix files..."
+      (
+        cd "$cfg_dir" || exit 1
+        command nix fmt .
+      ) || {
+        echo "Error: nix fmt failed." >&2
+        return 1
+      }
+
       # Stage all new and modified files.
       if ! git -C "$cfg_dir" add .; then
         echo "Error: Failed to stage changes." >&2

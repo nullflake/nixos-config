@@ -214,13 +214,17 @@ def notify_results(results, icon):
     failed = any(result.status == "unknown" for result in results)
     selected = [result for result in results if result.status != "current"]
     if updates:
-        title = "System updates available"
+        title = (
+            "Source updates available; check incomplete"
+            if failed
+            else "Source updates available"
+        )
     elif failed:
-        title = "System update check incomplete"
+        title = "Source update check incomplete"
     elif selected:
-        title = "System update check complete"
+        title = "Source update check complete"
     else:
-        title = "System is up to date"
+        title = "Sources are up to date"
     try:
         subprocess.run(
             [
@@ -293,6 +297,7 @@ def report(directory, client, notification_icon=None, details=False):
         print(paint("─" * min(60, width), "muted"), flush=True)
 
     print(flush=True)
+    line("Sources: flake.lock and pkgs/helium.json", "muted")
     labels = {
         "current": "current",
         "update": "update",

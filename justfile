@@ -59,7 +59,6 @@ network:
     @printf '%-34s : %s\n' "vpn down" "Disconnect ProtonVPN"
     @printf '%-34s : %s\n' "vpn status" "Show ProtonVPN connection status"
     @printf '%-34s : %s\n' "zapret up|down|status" "Start, stop, or check status of zapret DPI-desync service"
-    @printf '%-34s : %s\n' "triplist" "Print reference list of trusted IPs (AWS, Quad9)"
 
 # Window managers & terminal
 [group('desktop')]

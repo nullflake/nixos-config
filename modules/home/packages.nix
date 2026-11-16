@@ -2,6 +2,7 @@
 {
   home.packages = with pkgs; [
     # Browsers
+    brave-origin
     helium
     tor-browser
 

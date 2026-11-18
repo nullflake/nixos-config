@@ -21,7 +21,7 @@ Hosts are discovered automatically from `hosts/`, without adding flake entries.
 Each `hosts/<name>/default.nix` selects system modules and imports the host's
 `home.nix` for Home Manager. The directory name becomes both the hostname and
 the `nixosConfigurations` key. The current host is
-[`wakizashi`](hosts/wakizashi).
+[`katana`](hosts/katana).
 
 ## First build
 
@@ -39,10 +39,10 @@ backs up conflicting managed files with a `.backup` suffix; resolve existing
 backup-name conflicts before activation.
 
 On an installed NixOS system with `nix-command` and `flakes` enabled, run from
-the checkout. Use the host directory name after `#` (`wakizashi` here):
+the checkout. Use the host directory name after `#` (`katana` here):
 
 ```bash
-sudo nixos-rebuild switch --flake .#wakizashi
+sudo nixos-rebuild switch --flake .#katana
 ```
 
 Start a new login session to load the shell helpers.

@@ -517,9 +517,46 @@ def prune(destination: Path, pending: Path, newest: Path) -> None:
         remove_pending(pending)
 
 
+def mounted_veracrypt_volumes(auxiliary_count: int) -> tuple[Path, ...]:
+    unknown = "Cannot identify all mounted VeraCrypt volumes; dismount them first"
+    try:
+        result = subprocess.run(
+            ["veracrypt", "-t", "--non-interactive", "--verbose", "--list"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=10,
+            env={**os.environ, "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.SubprocessError, UnicodeError) as error:
+        raise BackupPostponed(unknown) from error
+
+    volumes: dict[str, Path] = {}
+    for record in result.stdout.strip("\n").split("\n\n"):
+        lines = record.split("\n", 3)
+        if len(lines) != 4 or not lines[2].startswith("Virtual Device:"):
+            raise BackupPostponed(unknown)
+        slot = lines[0].removeprefix("Slot: ")
+        path = Path(lines[1].removeprefix("Volume: "))
+        if (
+            not lines[0].startswith("Slot: ")
+            or not slot.isdecimal()
+            or not lines[1].startswith("Volume: ")
+            or not path.is_absolute()
+            or volumes.setdefault(slot, path) != path
+        ):
+            raise BackupPostponed(unknown)
+
+    # VeraCrypt skips auxiliary mounts whose control files it cannot read.
+    if len(volumes) != auxiliary_count:
+        raise BackupPostponed(unknown)
+    return tuple(volumes.values())
+
+
 def require_unmounted(settings: Settings) -> None:
     containers = [settings.home / path for path in settings.container_paths]
     required = {(settings.home / path).resolve() for path in settings.unmounted_paths}
+    veracrypt_mounts: set[Path] = set()
     if required or containers:
         mounts = command_json(
             "findmnt", "--json", "--list", "--output", "TARGET,FSTYPE,SOURCE"
@@ -531,13 +568,11 @@ def require_unmounted(settings: Settings) -> None:
             path = Path(target).resolve()
             if path in required:
                 raise BackupPostponed(f"Unmount {path} before backing up")
-            # VeraCrypt's userspace crypto backend may attach the decrypted
-            # auxiliary FUSE file to a loop device, hiding the original filename.
             if containers and (
                 mount.get("fstype") == "fuse.veracrypt"
                 or path.name.startswith(".veracrypt_aux_mnt")
             ):
-                raise BackupPostponed("Dismount VeraCrypt FUSE volumes first")
+                veracrypt_mounts.add(path)
     if not containers:
         return
     identities: set[tuple[int, int]] = set()
@@ -547,6 +582,20 @@ def require_unmounted(settings: Settings) -> None:
             raise ValueError(f"Encrypted container is not a regular file: {path}")
         identities.add((info.st_dev, info.st_ino))
     resolved = {p.resolve() for p in containers}
+    if veracrypt_mounts:
+        # The loop device may be backed by the auxiliary FUSE file instead
+        # of the original container, so use VeraCrypt's own volume list.
+        for path in mounted_veracrypt_volumes(len(veracrypt_mounts)):
+            try:
+                real_path = path.resolve(strict=True)
+                info = real_path.stat()
+            except OSError as error:
+                raise BackupPostponed(
+                    "Cannot identify a mounted VeraCrypt volume; dismount it first"
+                ) from error
+            if real_path in resolved or (info.st_dev, info.st_ino) in identities:
+                raise BackupPostponed(f"Encrypted container is mounted: {real_path}")
+
     loops = command_json("losetup", "--json", "--list", "--output", "BACK-FILE")
     for loop in records(loops, "loopdevices"):
         name = loop.get("back-file")

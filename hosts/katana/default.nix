@@ -1,5 +1,8 @@
 let
   username = "nullflake";
+  vcDirectory = "Private";
+  vcBackupMountPoint = "${vcDirectory}/auth";
+  vcBackupContainer = "${vcBackupMountPoint}.hc";
 in
 {
   system = "x86_64-linux";
@@ -45,11 +48,11 @@ in
           label = "Backup";
           paths = [
             ".config/net.imput.helium/Default/Bookmarks"
-            "Documents/veracrypt/veracrypt"
+            vcBackupContainer
             "Documents/obsidian"
           ];
-          unmountedPaths = [ "Documents/veracrypt/vault" ];
-          containerPaths = [ "Documents/veracrypt/veracrypt" ];
+          unmountedPaths = [ vcBackupMountPoint ];
+          containerPaths = [ vcBackupContainer ];
         };
 
         greeter.backend = "noctalia";
@@ -85,7 +88,10 @@ in
         ];
       };
 
-      home-manager.users.${username} = import ./home.nix;
+      home-manager.users.${username} = {
+        imports = [ ./home.nix ];
+        internal.veracrypt.directory = vcDirectory;
+      };
 
       system.stateVersion = "26.05";
     };

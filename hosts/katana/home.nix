@@ -21,6 +21,7 @@
     ../../modules/home/theme.nix
     ../../modules/home/udiskie.nix
     ../../modules/home/umbriel.nix
+    ../../modules/home/veracrypt.nix
     ../../modules/home/xdg.nix
     ../../modules/home/yazi.nix
     ../../modules/home/zed.nix

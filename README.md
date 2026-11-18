@@ -106,8 +106,10 @@ resolver and interface/VPN state.
 - **[USB backup](modules/system/backup.nix):** A mounted volume labelled
   `Backup` triggers verified snapshots of selected home paths, repeating every
   24 hours while mounted and retaining the latest eight. Sources and mount
-  exclusions are set in the host's `internal.backup`. Backups are postponed
-  while configured VeraCrypt volumes are mounted.
+  exclusions are set in the host's `internal.backup`. Backups wait for
+  configured mountpoints and encrypted containers to be unmounted. When
+  encrypted containers are selected, unidentifiable VeraCrypt mounts also
+  postpone backups.
 - **[PTT](modules/system/ptt.nix):** A user service starts the default microphone
   muted and provides mouse-button push-to-talk. Device and button are set in
   the host's `internal.ptt`.

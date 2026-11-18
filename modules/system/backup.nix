@@ -37,7 +37,8 @@ let
       pkgs.util-linux
       pkgs.libnotify
       pkgs.coreutils
-    ];
+    ]
+    ++ lib.optionals (cfg.containerPaths != [ ]) [ pkgs.veracrypt ];
     text = ''
       export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
       exec python3 ${../../scripts/services/backup.py} --config ${settings} "$@"

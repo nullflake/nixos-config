@@ -13,7 +13,6 @@
     # Security & privacy
     ente-auth
     proton-pass
-    veracrypt
 
     # Media & games
     cava

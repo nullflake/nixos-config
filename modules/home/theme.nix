@@ -38,6 +38,7 @@
       "file://${config.xdg.userDirs.documents}"
       "file://${config.xdg.userDirs.pictures}"
       "file://${config.xdg.userDirs.videos}"
+      "file://${config.xdg.userDirs.extraConfig.PRIVATE}"
       "file://${config.home.homeDirectory}/.config"
       "file://${config.home.homeDirectory}/.local"
     ];

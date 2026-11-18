@@ -53,6 +53,7 @@ in
     music = "${config.home.homeDirectory}/Music";
     videos = "${config.home.homeDirectory}/Videos";
     extraConfig = {
+      PRIVATE = "${config.home.homeDirectory}/Private";
       SOURCES = "${config.home.homeDirectory}/Sources";
     };
   };

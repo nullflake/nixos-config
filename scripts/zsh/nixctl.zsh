@@ -86,7 +86,7 @@ nixctl() {
       fi
       ;;
     list)
-      sudo nix-env --list-generations --profile /nix/var/nix/profiles/system | cat
+      sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
       ;;
     livecheck)
       if [[ -n "$FLAKE" ]]; then

@@ -29,13 +29,16 @@ LEGACY_STAMP = "%Y-%m-%dT%H-%M-%S.%fZ"
 BACKUP_INTERVAL = 24 * 60 * 60
 KEEP_SNAPSHOTS = 8
 RETRY = 15 * 60
-STATE_VERSION = 2
+STATE_VERSION = 3
 MANIFEST = ".backup-manifest.json"
 COMPLETE = ".backup-complete"
 OWNER_MARKER = ".backup-owner"
+SEQUENCE = ".backup-sequence"
 SNAPSHOT_FORMAT = "usb-backup-v1"
 OWNER_TOKEN = f"{SNAPSHOT_FORMAT}\n"
-METADATA = {MANIFEST, COMPLETE, OWNER_MARKER}
+STAGING = ".backup-staging"
+STAGING_OWNER = ".owned-v1"
+METADATA = {MANIFEST, COMPLETE, OWNER_MARKER, SEQUENCE}
 ERRORS = (
     OSError,
     RuntimeError,
@@ -73,9 +76,13 @@ class SnapshotManifest(TypedDict):
 
 class BackupState(TypedDict, total=False):
     version: int
+    boot: str
     mount: list[JsonValue] | None
     last_success_elapsed: float
     last_success: float
+    last_snapshot: str
+    last_outcome: str
+    last_detail: str
     retry_after_elapsed: float
 
 
@@ -83,7 +90,12 @@ class BackupState(TypedDict, total=False):
 class Arguments(argparse.Namespace):
     config: Path = Path(".")
     force: bool = False
-    verify: Path | None = None
+    status: bool = False
+    verify: str | None = None
+
+
+class BackupPostponed(RuntimeError):
+    """A configured source is currently mounted."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,13 +222,14 @@ def records(value: dict[str, JsonValue], key: str) -> list[dict[str, JsonValue]]
     return [json_object(item, key) for item in items]
 
 
-def find_volume(label: str) -> Volume | None:
+def probe_volume(label: str) -> tuple[bool, Volume | None]:
+    """Return whether the label exists and, if mounted, its volume."""
     devices = command_json(
         "lsblk", "--json", "--list", "--output", "LABEL,MAJ:MIN,DISK-SEQ"
     )
     matches = [d for d in records(devices, "blockdevices") if d.get("label") == label]
     if not matches:
-        return None
+        return False, None
     if len(matches) != 1:
         raise RuntimeError(f"Multiple volumes have label {label!r}; refusing to choose")
     device = matches[0].get("maj:min")
@@ -227,22 +240,34 @@ def find_volume(label: str) -> Volume | None:
     ):
         raise ValueError("Cannot determine the backup volume's device number")
     sequence = matches[0].get("disk-seq")
-    if type(sequence) is not int or sequence <= 0:
-        raise RuntimeError("Cannot determine the backup volume's disk sequence")
     mounts = command_json(
         "findmnt", "--json", "--list", "--output", "TARGET,MAJ:MIN,ID"
     )
     matches = [m for m in records(mounts, "filesystems") if m.get("maj:min") == device]
     if not matches:
-        return None
+        return True, None
     if len(matches) != 1:
         raise RuntimeError("Backup volume has multiple mountpoints")
+    if type(sequence) is not int or sequence <= 0:
+        raise RuntimeError("Cannot determine the backup volume's disk sequence")
     target, mount_id = matches[0].get("target"), matches[0].get("id")
     if not isinstance(target, str) or not Path(target).is_absolute():
         raise ValueError("Backup volume must have an absolute mountpoint")
     if type(mount_id) is not int or mount_id <= 0:
         raise ValueError("Cannot determine the backup volume's mount ID")
-    return Volume(Path(target), device, sequence, mount_id)
+    return True, Volume(Path(target), device, sequence, mount_id)
+
+
+def connection_identity(
+    settings: Settings, volume: Volume, current_boot: str
+) -> list[JsonValue]:
+    return [
+        current_boot,
+        volume.device,
+        volume.disk_sequence,
+        volume.mount_id,
+        settings.identity(),
+    ]
 
 
 def relative_path(value: object) -> Path:
@@ -327,17 +352,14 @@ def prepare_destination(settings: Settings) -> Path:
     return destination
 
 
-def snapshot_time(name: str, zone: dt.tzinfo | None = None) -> dt.datetime | None:
+def snapshot_name_time(name: str, timezone: dt.tzinfo = dt.UTC) -> dt.datetime | None:
     try:
-        stamp = dt.datetime.strptime(name, STAMP)
-        if zone is not None:
-            stamp = stamp.replace(tzinfo=zone)
+        return dt.datetime.strptime(name, STAMP).replace(tzinfo=timezone)
     except ValueError:
         try:
-            stamp = dt.datetime.strptime(name, LEGACY_STAMP).replace(tzinfo=dt.UTC)
+            return dt.datetime.strptime(name, LEGACY_STAMP).replace(tzinfo=dt.UTC)
         except ValueError:
             return None
-    return stamp.astimezone(dt.UTC)
 
 
 def read_json(path: Path, limit: int = 16 * 1024 * 1024) -> JsonValue:
@@ -369,7 +391,26 @@ def marker_matches(path: Path, content: str) -> bool:
         return False
 
 
-def remove_incomplete(destination: Path) -> None:
+def remove_pending(pending: Path) -> None:
+    if pending.is_symlink():
+        raise RuntimeError(f"Backup staging path is a symlink: {pending}")
+    if pending.exists():
+        shutil.rmtree(pending)
+
+
+def prepare_staging(destination: Path) -> Path:
+    staging = destination / STAGING
+    staging.mkdir(mode=0o700, exist_ok=True)
+    if staging.is_symlink() or not staging.is_dir():
+        raise ValueError(f"Expected an ordinary backup staging directory: {staging}")
+    owner = staging / STAGING_OWNER
+    if not owner.is_dir() or owner.is_symlink():
+        if any(staging.iterdir()):
+            raise ValueError(f"Backup staging directory has no owner: {staging}")
+        # An interruption during setup can leave an empty staging root.
+        owner.mkdir()
+    pending = staging / "pending"
+    remove_pending(pending)
     for path in destination.iterdir():
         if (
             path.name.startswith(".incomplete-")
@@ -377,7 +418,10 @@ def remove_incomplete(destination: Path) -> None:
             and path.is_dir()
             and marker_matches(path / OWNER_MARKER, OWNER_TOKEN)
         ):
-            shutil.rmtree(path)
+            # Keep the ownership marker outside the tree being deleted.
+            _ = path.rename(pending)
+            remove_pending(pending)
+    return pending
 
 
 def flush_volume() -> None:
@@ -436,21 +480,41 @@ def read_manifest(path: Path) -> SnapshotManifest:
     }
 
 
-def prune(destination: Path, zone: dt.tzinfo | None = None) -> None:
-    snapshots: list[tuple[dt.datetime, Path]] = []
+def snapshot_sequence(path: Path) -> int:
+    try:
+        value = read_json(path / SEQUENCE, limit=128)
+    except FileNotFoundError:
+        return 0
+    if type(value) is not int or value <= 0:
+        raise ValueError(f"Invalid snapshot sequence: {path}")
+    return value
+
+
+def prune(destination: Path, pending: Path, newest: Path) -> None:
+    snapshots: list[tuple[int, dt.datetime, Path]] = []
     for path in destination.iterdir():
+        if snapshot_name_time(path.name) is None:
+            continue
         if path.is_symlink() or not path.is_dir():
-            continue
-        stamp = snapshot_time(path.name, zone)
-        if stamp is None or not marker_matches(path / COMPLETE, "1\n"):
-            continue
-        if (path / MANIFEST).exists():
-            stamp = manifest_time(read_json(path / MANIFEST), path)
-        snapshots.append((stamp, path))
-    # Collect all timestamps before deleting anything; age alone never expires a backup.
-    snapshots.sort(key=lambda item: (item[0], item[1].name), reverse=True)
-    for _, path in snapshots[KEEP_SNAPSHOTS:]:
-        shutil.rmtree(path)
+            raise ValueError(f"Unexpected snapshot path: {path}")
+        if not marker_matches(path / COMPLETE, "1\n"):
+            raise ValueError(f"Snapshot is incomplete: {path}")
+        manifest = read_manifest(path)
+        stamp = dt.datetime.fromisoformat(manifest["created_utc"])
+        snapshots.append((snapshot_sequence(path), stamp, path))
+    # Keep the just-written snapshot even if the wall clock moved backwards.
+    snapshots.sort(
+        key=lambda item: (item[2] == newest, *item), reverse=True
+    )
+    if len(snapshots) <= KEEP_SNAPSHOTS:
+        return
+    for _, _, path in snapshots[:KEEP_SNAPSHOTS]:
+        # take_snapshot already verified the new copy before publishing it.
+        if path != newest:
+            _ = verify_snapshot(path)
+    for _, _, path in reversed(snapshots[KEEP_SNAPSHOTS:]):
+        _ = path.rename(pending)
+        remove_pending(pending)
 
 
 def require_unmounted(settings: Settings) -> None:
@@ -466,18 +530,14 @@ def require_unmounted(settings: Settings) -> None:
                 raise TypeError("Mountpoint information must contain a path string")
             path = Path(target).resolve()
             if path in required:
-                raise RuntimeError(
-                    f"Backup postponed: unmount {path} before backing up"
-                )
+                raise BackupPostponed(f"Unmount {path} before backing up")
             # VeraCrypt's userspace crypto backend may attach the decrypted
             # auxiliary FUSE file to a loop device, hiding the original filename.
             if containers and (
                 mount.get("fstype") == "fuse.veracrypt"
                 or path.name.startswith(".veracrypt_aux_mnt")
             ):
-                raise RuntimeError(
-                    "Backup postponed: dismount VeraCrypt FUSE volumes first"
-                )
+                raise BackupPostponed("Dismount VeraCrypt FUSE volumes first")
     if not containers:
         return
     identities: set[tuple[int, int]] = set()
@@ -494,17 +554,13 @@ def require_unmounted(settings: Settings) -> None:
             raise RuntimeError("Cannot determine a loop device's backing file")
         path = Path(name)
         if path.resolve() in resolved:
-            raise RuntimeError(
-                f"Backup postponed: encrypted container is mounted: {path}"
-            )
+            raise BackupPostponed(f"Encrypted container is mounted: {path}")
         try:
             info = path.stat()
         except FileNotFoundError:
             continue  # An unrelated backing file may have been deleted.
         if (info.st_dev, info.st_ino) in identities:
-            raise RuntimeError(
-                f"Backup postponed: encrypted container is mounted: {path}"
-            )
+            raise BackupPostponed(f"Encrypted container is mounted: {path}")
 
 
 def signature(info: os.stat_result) -> FileSignature:
@@ -578,6 +634,36 @@ def verify_snapshot(path: Path, require_complete: bool = True) -> int:
     return len(files)
 
 
+def verify_latest(settings: Settings) -> tuple[Path, int]:
+    present, volume = probe_volume(settings.label)
+    if volume is None:
+        reason = "not mounted" if present else "not found"
+        raise RuntimeError(f"Drive {settings.label!r}: {reason}")
+
+    with mounted_directory(volume):
+        destination = settings.destination
+        if not os.path.lexists(destination) and settings.legacy_destination is not None:
+            destination = settings.legacy_destination
+        for path in (destination, *destination.parents):
+            if path.is_symlink():
+                raise ValueError(f"Backup directory is a symlink: {path}")
+        if not destination.is_dir():
+            raise ValueError(f"No backup directory at {volume.target / destination}")
+        candidates: list[tuple[int, dt.datetime, Path]] = []
+        for path in destination.iterdir():
+            stamp = snapshot_name_time(path.name, settings.timezone)
+            if stamp is not None:
+                sequence = (
+                    snapshot_sequence(path) if not path.is_symlink() and path.is_dir() else 0
+                )
+                candidates.append((sequence, stamp, path))
+        if not candidates:
+            raise ValueError(f"No snapshots found in {volume.target / destination}")
+        _, _, snapshot = max(candidates)
+        print(f"Verifying snapshot: {volume.target / snapshot}", flush=True)
+        return volume.target / snapshot, verify_snapshot(snapshot)
+
+
 def require_space(destination: Path, entries: dict[str, FileSignature]) -> None:
     block = os.statvfs(destination).f_frsize
     required = (
@@ -626,7 +712,7 @@ def available_snapshot_path(destination: Path, zone: ZoneInfo) -> Path:
         time.sleep(0.1)
 
 
-def take_snapshot(settings: Settings) -> Path:
+def take_snapshot(settings: Settings) -> tuple[Path, Path]:
     require_unmounted(settings)
     before = inventory(settings.home, settings.paths)
     # Check before creating or migrating the destination inside a selected tree.
@@ -636,9 +722,19 @@ def take_snapshot(settings: Settings) -> Path:
         if source.is_dir() and destination.resolve().is_relative_to(source.resolve()):
             raise ValueError("Backup destination must not be inside a selected source")
     destination = prepare_destination(settings)
-    remove_incomplete(destination)
+    temporary = prepare_staging(destination)
+    sequence = max(
+        (
+            snapshot_sequence(path)
+            for path in destination.iterdir()
+            if snapshot_name_time(path.name) is not None
+            and not path.is_symlink()
+            and path.is_dir()
+        ),
+        default=0,
+    ) + 1
     require_space(destination, before)
-    temporary = Path(tempfile.mkdtemp(prefix=".incomplete-", dir=destination))
+    temporary.mkdir(mode=0o700)
     try:
         _ = (temporary / OWNER_MARKER).write_text(OWNER_TOKEN)
         for relative in settings.paths:
@@ -649,6 +745,7 @@ def take_snapshot(settings: Settings) -> Path:
             else:
                 _ = shutil.copy2(source, target, follow_symlinks=False)
         write_json(temporary / MANIFEST, build_manifest(settings, before))
+        write_json(temporary / SEQUENCE, sequence)
         _ = verify_snapshot(temporary, require_complete=False)
         require_unmounted(settings)
         if inventory(settings.home, settings.paths) != before:
@@ -659,16 +756,15 @@ def take_snapshot(settings: Settings) -> Path:
         _ = temporary.rename(final)
         flush_volume()
     finally:
-        if temporary.exists():
-            try:
-                shutil.rmtree(temporary)
-            except OSError as error:
-                print(
-                    f"Staging cleanup failed; recovery will retry later: {error}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-    return final
+        try:
+            remove_pending(temporary)
+        except ERRORS as error:
+            print(
+                f"Staging cleanup failed; recovery will retry later: {error}",
+                file=sys.stderr,
+                flush=True,
+            )
+    return final, temporary
 
 
 def notify(message: str, critical: bool = False) -> None:
@@ -688,51 +784,62 @@ def notify(message: str, critical: bool = False) -> None:
         pass
 
 
-def load_state(path: Path, now: float) -> BackupState:
+def load_state(path: Path, current_boot: str) -> BackupState:
     try:
         state = read_json(path, limit=1024 * 1024)
         if (
             not isinstance(state, dict)
             or type(state.get("version")) is not int
-            or state.get("version") != STATE_VERSION
+            or state.get("version") not in (2, STATE_VERSION)
         ):
             raise ValueError("Unknown state format")
-        mount = state.get("mount")
-        if mount is not None and not isinstance(mount, list):
-            raise ValueError("Invalid saved connection identity")
-        timestamps: dict[str, float] = {}
-        for name in ("last_success_elapsed", "retry_after_elapsed"):
-            value = state.get(name, 0)
-            if (
-                not isinstance(value, (int, float))
-                or isinstance(value, bool)
-                or not 0 <= value <= now + RETRY
-            ):
-                raise ValueError("Invalid state timestamp")
-            if name in state:
-                timestamps[name] = float(value)
-        last_success = state.get("last_success", 0)
+        validated: BackupState = {"version": STATE_VERSION}
+        last_success = state.get("last_success")
         if (
-            not isinstance(last_success, (int, float))
-            or isinstance(last_success, bool)
-            or not 0 <= last_success < float("inf")
+            isinstance(last_success, (int, float))
+            and not isinstance(last_success, bool)
+            and 0 <= last_success < dt.datetime(9999, 12, 30, tzinfo=dt.UTC).timestamp()
         ):
-            raise ValueError("Invalid state wall-clock timestamp")
-        validated: BackupState = {"version": STATE_VERSION, "mount": mount}
-        if "last_success_elapsed" in timestamps:
-            validated["last_success_elapsed"] = timestamps["last_success_elapsed"]
-        if "retry_after_elapsed" in timestamps:
-            validated["retry_after_elapsed"] = timestamps["retry_after_elapsed"]
-        if "last_success" in state:
             validated["last_success"] = float(last_success)
-        if validated.get("last_success_elapsed", 0) > now:
-            raise ValueError("State clock is outside this boot's range")
+            if state.get("version") == 2:
+                validated["last_outcome"] = "success"
+        snapshot = state.get("last_snapshot")
+        if isinstance(snapshot, str) and snapshot_name_time(snapshot) is not None:
+            validated["last_snapshot"] = snapshot
+        outcome = state.get("last_outcome")
+        if outcome in ("success", "deferred", "error"):
+            validated["last_outcome"] = outcome
+        detail = state.get("last_detail")
+        if isinstance(detail, str):
+            validated["last_detail"] = detail
+        mount = state.get("mount")
+        saved_boot = state.get("boot")
+        if state.get("version") == 2 and isinstance(mount, list) and mount:
+            saved_boot = mount[0]
+        if saved_boot == current_boot and (mount is None or isinstance(mount, list)):
+            now = elapsed()
+            validated["boot"] = current_boot
+            validated["mount"] = mount
+            successful = state.get("last_success_elapsed")
+            retry = state.get("retry_after_elapsed")
+            if (
+                isinstance(successful, (int, float))
+                and not isinstance(successful, bool)
+                and 0 <= successful <= now
+            ):
+                validated["last_success_elapsed"] = float(successful)
+            if (
+                isinstance(retry, (int, float))
+                and not isinstance(retry, bool)
+                and 0 <= retry <= now + RETRY
+            ):
+                validated["retry_after_elapsed"] = float(retry)
         return validated
     except FileNotFoundError:
         return {}
     except (ValueError, UnicodeError):
         print(
-            "Discarding invalid or obsolete backup state", file=sys.stderr, flush=True
+            "Ignoring invalid or obsolete backup state", file=sys.stderr, flush=True
         )
         return {}
 
@@ -755,64 +862,132 @@ def save_state(path: Path, state: BackupState) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
+def scheduled_wait(
+    state: BackupState, identity: list[JsonValue] | None, now: float
+) -> tuple[str, float] | None:
+    if state.get("mount") == identity:
+        retry = state.get("retry_after_elapsed", 0)
+        if now < retry:
+            return "Retry scheduled", retry - now
+        success = state.get("last_success_elapsed")
+        if success is not None and now < success + BACKUP_INTERVAL:
+            return "Normal interval", success + BACKUP_INTERVAL - now
+    return None
+
+
+def show_status(settings: Settings, state_path: Path) -> int:
+    current_boot = boot_id()
+    state = load_state(state_path, current_boot)
+    success = state.get("last_success")
+    if success is None:
+        print("Last successful backup: no record")
+    else:
+        stamp = dt.datetime.fromtimestamp(success, settings.timezone)
+        difference = time.time() - success
+        duration = dt.timedelta(seconds=int(abs(difference)))
+        age = f"{duration} ago" if difference >= 0 else f"{duration} in the future"
+        local_time = stamp.isoformat(sep=" ", timespec="seconds")
+        print(f"Last successful backup: {local_time} ({age})")
+        if "last_snapshot" in state:
+            print(f"Snapshot: {state['last_snapshot']}")
+        print("Verification at backup time: completed")
+    print("Snapshot verification in this query: not performed (use --verify latest)")
+
+    outcomes = {"success": "successful", "deferred": "postponed", "error": "failed"}
+    print(f"Last attempt: {outcomes.get(state.get('last_outcome', ''), 'no record')}")
+    if detail := state.get("last_detail"):
+        print(f"Details: {detail}")
+
+    try:
+        present, volume = probe_volume(settings.label)
+    except ERRORS as error:
+        print(f"Drive {settings.label!r}: detection failed ({error})")
+        return 1
+    if volume is None:
+        drive_status = "present, not mounted" if present else "not found"
+        print(f"Drive {settings.label!r}: {drive_status}")
+        print("Schedule: waiting for a mounted drive")
+        return 0
+
+    print(f"Drive {settings.label!r}: mounted at {volume.target}")
+    identity = connection_identity(settings, volume, current_boot)
+    wait = scheduled_wait(state, identity, elapsed())
+    if wait is None:
+        print("Schedule: no active wait")
+    else:
+        reason, remaining = wait
+        print(f"Schedule: {reason} ({dt.timedelta(seconds=int(remaining))} remaining)")
+    return 0
+
+
 def run(settings: Settings, state_path: Path, force: bool) -> int:
     now = elapsed()
-    state = load_state(state_path, now)
+    current_boot = boot_id()
+    state: BackupState = load_state(state_path, current_boot)
     identity: list[JsonValue] | None = None
+    snapshot = None
     try:
-        volume = find_volume(settings.label)
+        _, volume = probe_volume(settings.label)
         if volume is None:
-            state_path.unlink(missing_ok=True)
+            if "mount" in state:
+                del state["mount"]
+                _ = state.pop("boot", None)
+                _ = state.pop("last_success_elapsed", None)
+                _ = state.pop("retry_after_elapsed", None)
+                save_state(state_path, state)
             return 0
-        identity = [
-            boot_id(),
-            volume.device,
-            volume.disk_sequence,
-            volume.mount_id,
-            settings.identity(),
-        ]
-        if not force and state.get("mount") == identity:
-            if now < state.get("retry_after_elapsed", 0):
-                return 0
-            if (
-                "last_success_elapsed" in state
-                and now - state["last_success_elapsed"] < BACKUP_INTERVAL
-            ):
-                return 0
+        identity = connection_identity(settings, volume, current_boot)
+        if not force and scheduled_wait(state, identity, now) is not None:
+            return 0
         warning = None
         with mounted_directory(volume):
-            snapshot = take_snapshot(settings)
-            try:
-                prune(settings.destination, settings.timezone)
-                flush_volume()
-            except ERRORS as error:
-                warning = f"Backup saved, but old-backup cleanup failed: {error}"
-        save_state(
-            state_path,
-            {
+            snapshot, pending = take_snapshot(settings)
+            state = {
+                "boot": current_boot,
                 "mount": identity,
                 "last_success_elapsed": elapsed(),
                 "last_success": time.time(),
-            },
-        )
+                "last_snapshot": snapshot.name,
+                "last_outcome": "success",
+            }
+            save_state(state_path, state)
+            try:
+                prune(snapshot.parent, pending, snapshot)
+                flush_volume()
+            except ERRORS as error:
+                warning = f"Backup saved, but old-backup cleanup failed: {error}"
+                print(warning, file=sys.stderr, flush=True)
+                state["last_detail"] = warning
+                save_state(state_path, state)
         print(f"Backup complete: {volume.target / snapshot}", flush=True)
-        if warning:
-            print(warning, file=sys.stderr, flush=True)
         notify(
             warning or "Selected files were backed up and verified successfully.",
             bool(warning),
         )
         return 0
     except ERRORS as error:
+        if snapshot is not None:
+            raise
         if (
-            not force
-            and state.get("mount") == identity
-            and now < state.get("retry_after_elapsed", 0)
+            identity is None
+            and not force
+            and scheduled_wait(state, identity, now) is not None
         ):
             return 0
-        save_state(
-            state_path, {"mount": identity, "retry_after_elapsed": elapsed() + RETRY}
+        postponed = isinstance(error, BackupPostponed)
+        _ = state.pop("last_success_elapsed", None)
+        state.update(
+            boot=current_boot,
+            mount=identity,
+            retry_after_elapsed=elapsed() + RETRY,
+            last_outcome="deferred" if postponed else "error",
+            last_detail=str(error),
         )
+        save_state(state_path, state)
+        if postponed:
+            print(f"Backup postponed: {error}", flush=True)
+            notify(f"Backup postponed: {error}")
+            return 0
         print(f"Backup failed: {error}", file=sys.stderr, flush=True)
         notify(
             f"Backup failed: {error}. See journalctl --user -u usb-backup.service.",
@@ -829,31 +1004,45 @@ def interrupted(signum: int, _frame: FrameType | None) -> NoReturn:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    _ = parser.add_argument("--config", required=True, type=Path)
-    _ = parser.add_argument(
+    parser = argparse.ArgumentParser(prog="usb-backup", description=__doc__)
+    _ = parser.add_argument("--config", required=True, type=Path, help=argparse.SUPPRESS)
+    action = parser.add_mutually_exclusive_group()
+    _ = action.add_argument(
         "--force",
         action="store_true",
         help="Back up now, ignoring the 24-hour interval and retry delay",
     )
-    _ = parser.add_argument(
+    _ = action.add_argument(
+        "--status",
+        action="store_true",
+        help="Report recorded backup results and current drive status (read-only)",
+    )
+    _ = action.add_argument(
         "--verify",
-        type=Path,
         metavar="SNAPSHOT",
-        help="Verify a completed snapshot without changing it",
+        help="Verify a snapshot by path or use 'latest' for the newest on the backup drive",
     )
     args = parser.parse_args(namespace=Arguments())
     try:
-        if args.verify:
-            count = verify_snapshot(args.verify)
-            print(f"Snapshot verified: {count} files in {args.verify}")
+        if args.verify is not None and args.verify != "latest":
+            snapshot = Path(args.verify)
+            count = verify_snapshot(snapshot)
+            print(f"Snapshot verified: {count} files in {snapshot}")
             return 0
         settings = Settings.from_json(read_json(args.config))
+        if args.verify == "latest":
+            snapshot, count = verify_latest(settings)
+            print(f"Snapshot verified: {count} files in {snapshot}")
+            return 0
+        state_home = Path(os.environ.get("XDG_STATE_HOME", ""))
+        if not state_home.is_absolute():
+            state_home = Path.home() / ".local/state"
         state_directory = Path(
-            os.environ.get(
-                "STATE_DIRECTORY", str(Path.home() / ".local/state/usb-backup")
-            )
-        )
+            os.environ.get("STATE_DIRECTORY") or state_home / "usb-backup"
+        ).absolute()
+        state_path = state_directory / "state.json"
+        if args.status:
+            return show_status(settings, state_path)
         state_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         with (state_directory / "lock").open("a") as lock:
             try:
@@ -862,7 +1051,7 @@ def main() -> int:
                 return 0
             _ = signal.signal(signal.SIGTERM, interrupted)
             _ = signal.signal(signal.SIGINT, interrupted)
-            return run(settings, state_directory / "state.json", args.force)
+            return run(settings, state_path, args.force)
     except ERRORS as error:
         print(f"USB backup error: {error}", file=sys.stderr, flush=True)
         return 1

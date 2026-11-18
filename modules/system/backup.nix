@@ -12,6 +12,7 @@ let
     ".backup-manifest.json"
     ".backup-complete"
     ".backup-owner"
+    ".backup-sequence"
   ];
 
   settings = pkgs.writeText "usb-backup.json" (

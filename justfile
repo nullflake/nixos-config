@@ -28,7 +28,7 @@ nixctl:
     @printf '%-34s : %s\n' "nixctl search --status [--stable]" "Show refresh service status"
     @printf '%-34s : %s\n' "nixctl search --logs [--stable]" "Show the last 20 refresh log entries"
     @printf '%-34s : %s\n' "  Automatic update" "Each search checks the channel and waits for updates"
-    @printf '%-34s : %s\n' "nixctl search --options <query>" "Search local NixOS and Home Manager options (--nixos, --home-manager, --details)"
+    @printf '%-34s : %s\n' "nixctl search --options <query> [--nixos | --home-manager]" "Search both option catalogs by default"
     @printf '%-34s : %s\n' "nixctl search --help" "Show all search options and examples"
     @printf '%-34s : %s\n' "nixctl switch" "Apply current configuration (nh os switch)"
     @printf '%-34s : %s\n' "nixctl update" "Update flake inputs, try the Helium pin update, validate, then build and switch"

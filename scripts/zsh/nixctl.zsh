@@ -119,7 +119,7 @@ nixctl() {
             systemctl --user list-units --all --no-pager "$search_service"
             ;;
           --logs)
-            journalctl --user -u "$search_service" -n 20 --no-pager
+            journalctl --user --user-unit "$search_service" -n 20 --no-pager
             ;;
         esac
       else
@@ -211,7 +211,11 @@ _nixctl_completion() {
         compadd -- --options --offline --status --logs --stable --details --limit --all --set --top-level
       elif [[ "$words[3]" == "--options" ]]; then
         [[ "$words[CURRENT-1]" == "--limit" ]] && return
-        compadd -- --help --limit --stable --offline --details --channel --json --nixos --home-manager
+        local -a scopes
+        if (( ! ${words[(Ie)--nixos]} && ! ${words[(Ie)--home-manager]} )); then
+          scopes=(--nixos --home-manager)
+        fi
+        compadd -- --help --limit --stable --offline --details --channel --json "${scopes[@]}"
       elif (( ${words[(Ie)--status]} || ${words[(Ie)--logs]} )); then
         compadd -- --stable
       else

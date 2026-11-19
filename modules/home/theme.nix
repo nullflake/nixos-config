@@ -67,9 +67,5 @@
     "org/gnome/desktop/wm/preferences" = {
       button-layout = "";
     };
-
-    "org/gnome/nautilus/list-view" = {
-      use-tree-view = true;
-    };
   };
 }

@@ -13,6 +13,7 @@
     ../../modules/home/mangohud.nix
     ../../modules/home/micro.nix
     ../../modules/home/mpv.nix
+    ../../modules/home/nautilus.nix
     ../../modules/home/noctalia.nix
     ../../modules/home/packages.nix
     ../../modules/home/packageSearch.nix

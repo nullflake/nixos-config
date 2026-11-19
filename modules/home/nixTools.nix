@@ -29,7 +29,11 @@ let
   };
 in
 {
-  home.packages = [ packageIndex ];
+  home.packages = [
+    packageIndex
+    tools.livecheck
+    tools.upstream
+  ];
 
   systemd.user.services = lib.mapAttrs (_: channel: {
     Unit.Description = "Refresh the local ${channel.label} package and option index";

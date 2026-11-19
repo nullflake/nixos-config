@@ -1,9 +1,27 @@
 """Run read-only queries against the local search indexes."""
 
+import sqlite3
+from collections.abc import Sequence
+from typing import NamedTuple
+
 DEFAULT_PACKAGE_SETS = ("kdePackages",)
 
+type OptionRow = tuple[str, str, str, str | None, str]
+type OptionGroup = tuple[str, str, list[OptionRow]]
 
-def package_search_fields(db, details):
+
+class PackageRow(NamedTuple):
+    """A package result with empty source details when they were not requested."""
+
+    attr: str
+    version: str
+    description: str
+    homepages_json: str = "[]"
+    position: str = ""
+
+
+def package_search_fields(db: sqlite3.Connection, details: bool) -> str:
+    """Select display columns, checking legacy schemas only for detailed output."""
     fields = "attr, version, description"
     if details:
         columns = {
@@ -17,7 +35,18 @@ def package_search_fields(db, details):
     return fields
 
 
-def query_packages(db, terms, fields, limit, *, package_set, top_level, all_packages):
+def query_packages(
+    db: sqlite3.Connection,
+    terms: Sequence[str],
+    details: bool,
+    limit: int,
+    *,
+    package_set: str | None,
+    top_level: bool,
+    all_packages: bool,
+) -> list[PackageRow]:
+    """Return ranked matches and at most one extra row to signal truncation."""
+    fields = package_search_fields(db, details)
     where = " AND ".join("instr(searchable, ?) > 0" for _ in terms)
     parameters = list(terms)
     if package_set is not None:
@@ -36,15 +65,17 @@ def query_packages(db, terms, fields, limit, *, package_set, top_level, all_pack
         where += " AND (" + " OR ".join(scopes) + ")"
     query = " ".join(terms)
     ranked_query = f"{package_set}.{query}".casefold() if package_set else query
-    return db.execute(
+    rows = db.execute(
         f"SELECT {fields} FROM packages WHERE {where} "
         "ORDER BY CASE WHEN lower(attr) = ? THEN 0 WHEN instr(lower(attr), ?) = 1 THEN 1 ELSE 2 END, "
         "length(attr), attr LIMIT ?",
         [*parameters, ranked_query, ranked_query, limit + 1],
-    ).fetchall()
+    )
+    return [PackageRow(*row) for row in rows]
 
 
-def query_options(db, table, query, limit):
+def query_options(db: sqlite3.Connection, table: str, query: str, limit: int) -> list[OptionRow]:
+    """Rank option names ahead of description matches and fetch one extra row."""
     terms = query.split()
     where = " AND ".join("instr(searchable, ?) > 0" for _ in terms)
     matches_name = " AND ".join("instr(lower(name), ?) > 0" for _ in terms)
@@ -58,7 +89,15 @@ def query_options(db, table, query, limit):
     ).fetchall()
 
 
-def query_option_catalogs(db, query, limit, *, nixos_only, home_manager_only):
+def query_option_catalogs(
+    db: sqlite3.Connection,
+    query: str,
+    limit: int,
+    *,
+    nixos_only: bool,
+    home_manager_only: bool,
+) -> tuple[list[OptionGroup], bool]:
+    """Return the selected catalog groups and flag absent optional Home Manager data."""
     tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     sources = (
         ("nixos", "NixOS", "options", not home_manager_only),

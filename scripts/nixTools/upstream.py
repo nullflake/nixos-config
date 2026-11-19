@@ -14,6 +14,8 @@ from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 
 NIXOS_HOSTS = frozenset({"channels.nixos.org", "releases.nixos.org"})
+NIXOS_CHANNELS = {"unstable": "nixos-unstable", "stable": "nixos-26.05"}
+CATALOG_RELEASE = re.compile(r"\.([0-9a-f]{7,40})/(packages|options)\.json\.br$")
 HELIUM_REPOSITORY = "imputnet/helium-linux"
 MAX_JSON_BYTES = 4 * 1024 * 1024
 
@@ -128,6 +130,14 @@ def release_revision(url):
     if not match:
         raise ValueError("channel did not resolve to an immutable release revision")
     return match.group(1)
+
+
+def catalog_revision(path: str, *, packages_only: bool = False) -> str | None:
+    """Extract the revision from a package or option catalog path."""
+    match = CATALOG_RELEASE.search(path)
+    if match is None or (packages_only and match[2] != "packages"):
+        return None
+    return match[1]
 
 
 def same_revision(first, second):

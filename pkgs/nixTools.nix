@@ -4,6 +4,7 @@
   writeShellApplication,
   brotli,
   systemd,
+  util-linux,
   git,
   libnotify,
   imagemagick,
@@ -39,7 +40,7 @@ let
     };
 in
 {
-  packageIndex = command "package-index" "-P -m search.cli" [ brotli systemd ] "" (
+  packageIndex = command "package-index" "-P -m search.cli" [ brotli systemd util-linux ] "" (
     ''
       export PYTHONPATH=${scripts}
     ''

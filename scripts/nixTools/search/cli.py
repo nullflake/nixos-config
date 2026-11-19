@@ -6,9 +6,16 @@ import sqlite3
 import subprocess
 import sys
 
-from .index import CHANNELS, refresh, search_index
+from upstream import NIXOS_CHANNELS as CHANNELS
+
+from .index import refresh, search_index
 from .output import print_index_header, print_option_results, print_package_results
-from .queries import package_search_fields, query_option_catalogs, query_packages
+from .queries import (
+    OptionGroup,
+    PackageRow,
+    query_option_catalogs,
+    query_packages,
+)
 
 DEFAULT_SEARCH_LIMIT = 20
 DEFAULT_OPTION_NAME_LIMIT = 40
@@ -29,10 +36,9 @@ def search(
     if not terms:
         raise ValueError("provide a non-empty search query")
 
-    def query(db):
-        fields = package_search_fields(db, details)
+    def query(db: sqlite3.Connection) -> list[PackageRow]:
         return query_packages(
-            db, terms, fields, limit,
+            db, terms, details, limit,
             package_set=package_set, top_level=top_level, all_packages=all_packages,
         )
 
@@ -58,11 +64,7 @@ def package_set_name(value):
     return value
 
 
-def search_options(arguments):
-    parser = argparse.ArgumentParser(
-        prog="nixctl search --options",
-        description="Search local NixOS and Home Manager options. Both catalogs are searched by default.",
-    )
+def add_option_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("query", nargs="+", help="one or more search terms")
     parser.add_argument(
         "-l", "--limit", type=search_limit,
@@ -78,7 +80,9 @@ def search_options(arguments):
     parser.add_argument("--offline", action="store_true", help="use the saved index")
     parser.add_argument("--details", action="store_true", help="show descriptions, defaults and source links")
     parser.add_argument("-j", "--json", action="store_true", help="output results as JSON")
-    args = parser.parse_args(arguments)
+
+
+def search_options(args: argparse.Namespace) -> int:
     limit = args.limit
     if limit is None:
         limit = DEFAULT_SEARCH_LIMIT if args.details or args.json else DEFAULT_OPTION_NAME_LIMIT
@@ -87,7 +91,7 @@ def search_options(arguments):
     if not query:
         raise ValueError("provide a non-empty search query")
 
-    def read_options(db):
+    def read_options(db: sqlite3.Connection) -> tuple[list[OptionGroup], bool]:
         return query_option_catalogs(
             db, query, limit, nixos_only=args.nixos, home_manager_only=args.home_manager
         )
@@ -113,17 +117,9 @@ def search_options(arguments):
     return 0
 
 
-def main():
-    if sys.argv[1:2] == ["options"]:
-        try:
-            return search_options(sys.argv[2:])
-        except BrokenPipeError:
-            raise
-        except SEARCH_ERRORS as error:
-            print(f"NixOS option search error: {error}", file=sys.stderr)
-            return 1
-
-    parser = argparse.ArgumentParser(prog="packageIndex.py", description=__doc__)
+def build_parser() -> argparse.ArgumentParser:
+    """Build the parser shared by search commands and index refresh workers."""
+    parser = argparse.ArgumentParser(prog="package-index", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     refresh_parser = commands.add_parser(
         "refresh", help="download channel metadata and atomically rebuild the index"
@@ -136,6 +132,12 @@ def main():
     refresh_parser.add_argument(
         "--release", help="internal: exact published release to index"
     )
+    add_option_arguments(commands.add_parser(
+        "options",
+        prog="nixctl search --options",
+        help="search NixOS and Home Manager options",
+        description="Search local NixOS and Home Manager options. Both catalogs are searched by default.",
+    ))
     search_parser = commands.add_parser(
         "search",
         prog="nixctl search",
@@ -204,27 +206,32 @@ def main():
         action="store_true",
         help="search all indexed packages, including every package set",
     )
-    args = parser.parse_args()
-    channel = "stable" if args.stable else "unstable"
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
     try:
-        return (
-            refresh(channel, args.release)
-            if args.command == "refresh"
-            else search(
-                args.query,
-                args.limit,
-                args.package_set,
-                args.top_level,
-                args.all_packages,
-                channel,
-                args.details,
-                args.offline,
-            )
+        if args.command == "options":
+            return search_options(args)
+        channel = "stable" if args.stable else "unstable"
+        if args.command == "refresh":
+            return refresh(channel, args.release)
+        return search(
+            args.query,
+            args.limit,
+            args.package_set,
+            args.top_level,
+            args.all_packages,
+            channel,
+            args.details,
+            args.offline,
         )
     except BrokenPipeError:
         raise
     except SEARCH_ERRORS as error:
-        print(f"Package index error: {error}", file=sys.stderr)
+        heading = "NixOS option search error" if args.command == "options" else "Package index error"
+        print(f"{heading}: {error}", file=sys.stderr)
         return 1
 
 

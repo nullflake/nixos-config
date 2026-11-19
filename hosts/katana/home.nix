@@ -6,7 +6,6 @@
     ../../modules/home/cli/eza.nix
     ../../modules/home/cli/fastfetch.nix
     ../../modules/home/cli/fd.nix
-    ../../modules/home/cli/livecheck.nix
     ../../modules/home/cli/micro.nix
     ../../modules/home/cli/starship.nix
     ../../modules/home/cli/yazi.nix
@@ -21,7 +20,7 @@
     ../../modules/home/nautilus.nix
     ../../modules/home/noctalia.nix
     ../../modules/home/packages.nix
-    ../../modules/home/packageSearch.nix
+    ../../modules/home/nixTools.nix
     ../../modules/home/swayimg.nix
     ../../modules/home/theme.nix
     ../../modules/home/udiskie.nix

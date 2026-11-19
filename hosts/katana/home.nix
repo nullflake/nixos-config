@@ -8,7 +8,6 @@
     ../../modules/home/fastfetch.nix
     ../../modules/home/fd.nix
     ../../modules/home/kitty.nix
-    ../../modules/home/lazygit.nix
     ../../modules/home/livecheck.nix
     ../../modules/home/mangohud.nix
     ../../modules/home/micro.nix

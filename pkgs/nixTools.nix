@@ -7,6 +7,8 @@
   git,
   libnotify,
   imagemagick,
+  lib,
+  homeManagerOptions ? null,
 }:
 let
   python = python3.withPackages (ps: [ ps.wcwidth ]);
@@ -26,20 +28,26 @@ let
     cp ${../scripts/nixTools/packageIndex.py} $out/packageIndex.py
   '';
   command =
-    name: script: dependencies: arguments:
+    name: script: dependencies: arguments: environment:
     writeShellApplication {
       inherit name;
       runtimeInputs = [ python ] ++ dependencies;
       text = ''
+        ${environment}
         exec python3 ${scripts}/${script} ${arguments} "$@"
       '';
     };
 in
 {
-  packageIndex = command "package-index" "packageIndex.py" [ brotli systemd ] "";
+  packageIndex = command "package-index" "packageIndex.py" [ brotli systemd ] "" (
+    lib.optionalString (homeManagerOptions != null) ''
+      export NIXCTL_HOME_MANAGER_OPTIONS=${lib.escapeShellArg homeManagerOptions.catalog}
+      export NIXCTL_HOME_MANAGER_REVISIONS=${lib.escapeShellArg (builtins.toJSON homeManagerOptions.revisions)}
+    ''
+  );
   livecheck = command "nix-livecheck" "livecheck.py" [
     git
     libnotify
-  ] "--notify-icon ${notificationIcon}";
-  upstream = command "nix-upstream" "upstream.py" [ ] "";
+  ] "--notify-icon ${notificationIcon}" "";
+  upstream = command "nix-upstream" "upstream.py" [ ] "" "";
 }

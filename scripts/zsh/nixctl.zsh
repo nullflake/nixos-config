@@ -99,6 +99,11 @@ nixctl() {
       sudo nixos-rebuild switch --rollback
       ;;
     search)
+      if [[ "$2" == "--options" ]]; then
+        package-index options "${@:3}"
+        return $?
+      fi
+
       local search_action="$2"
       [[ "$search_action" == "--stable" ]] && search_action="$3"
       if [[ "$search_action" == "--status" || "$search_action" == "--logs" ]]; then
@@ -173,6 +178,7 @@ nixctl() {
       echo "  rollback"
       echo "  search <query> [--offline] [--stable] [--details] [--limit N] [--all | --set <set> | --top-level]"
       echo "    Default scope: top-level packages + kdePackages"
+      echo "  search --options <query> [--nixos | --home-manager] [--stable] [--offline] [--details] [--limit N]"
       echo "  search <--status | --logs> [--stable]"
       echo "  switch"
       echo "  update"
@@ -202,7 +208,10 @@ _nixctl_completion() {
       ;;
     search)
       if (( CURRENT == 3 )); then
-        compadd -- --offline --status --logs --stable --details --limit --all --set --top-level
+        compadd -- --options --offline --status --logs --stable --details --limit --all --set --top-level
+      elif [[ "$words[3]" == "--options" ]]; then
+        [[ "$words[CURRENT-1]" == "--limit" ]] && return
+        compadd -- --help --limit --stable --offline --details --channel --json --nixos --home-manager
       elif (( ${words[(Ie)--status]} || ${words[(Ie)--logs]} )); then
         compadd -- --stable
       else

@@ -1,6 +1,21 @@
-{ lib, pkgs, ... }:
+{
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 let
-  tools = pkgs.callPackage ../../pkgs/nixTools.nix { };
+  tools = pkgs.callPackage ../../pkgs/nixTools.nix {
+    homeManagerOptions = {
+      catalog = "${
+        inputs.home-manager.packages.${pkgs.stdenv.hostPlatform.system}.docs-json
+      }/share/doc/home-manager/options.json";
+      revisions = {
+        "nix-community/home-manager" = inputs.home-manager.rev;
+        "NixOS/nixpkgs" = inputs.nixpkgs.rev;
+      };
+    };
+  };
   packageIndex = tools.packageIndex;
   channels = {
     "package-search-refresh@" = {
@@ -17,7 +32,7 @@ in
   home.packages = [ packageIndex ];
 
   systemd.user.services = lib.mapAttrs (_: channel: {
-    Unit.Description = "Refresh the local ${channel.label} package index";
+    Unit.Description = "Refresh the local ${channel.label} package and option index";
     Service = {
       Type = "oneshot";
       ExecStart = "${lib.getExe packageIndex} refresh${channel.arguments} --release %i";

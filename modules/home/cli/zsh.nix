@@ -1,6 +1,6 @@
 { lib, pkgs, ... }:
 let
-  zshDir = ../../scripts/zsh;
+  zshDir = ../../../scripts/zsh;
 
   /*
     Only regular *.zsh files (skips directories, .swp, .md, etc.).

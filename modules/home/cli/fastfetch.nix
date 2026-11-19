@@ -4,7 +4,7 @@ let
     dependency and only changes when the assets directory changes.
   */
   assets = builtins.path {
-    path = ../../assets;
+    path = ../../../assets;
     name = "nixos-assets";
   };
 in
@@ -16,5 +16,5 @@ in
   # @assets@ in the jsonc is replaced with the store path of the assets directory.
   home.file.".config/fastfetch/config.jsonc".text =
     builtins.replaceStrings [ "@assets@" ] [ "${assets}" ]
-      (builtins.readFile ../../assets/fastfetch.jsonc);
+      (builtins.readFile ../../../assets/fastfetch.jsonc);
 }

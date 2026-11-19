@@ -1,32 +1,34 @@
 { username, ... }:
 {
   imports = [
-    ../../modules/home/aliases.nix
+    # CLI modules
+    ../../modules/home/cli/aliases.nix
+    ../../modules/home/cli/eza.nix
+    ../../modules/home/cli/fastfetch.nix
+    ../../modules/home/cli/fd.nix
+    ../../modules/home/cli/livecheck.nix
+    ../../modules/home/cli/micro.nix
+    ../../modules/home/cli/starship.nix
+    ../../modules/home/cli/yazi.nix
+    ../../modules/home/cli/zoxide.nix
+    ../../modules/home/cli/zsh.nix
+
     ../../modules/home/desktopEntries.nix
     ../../modules/home/environment.nix
-    ../../modules/home/eza.nix
-    ../../modules/home/fastfetch.nix
-    ../../modules/home/fd.nix
     ../../modules/home/kitty.nix
-    ../../modules/home/livecheck.nix
     ../../modules/home/mangohud.nix
-    ../../modules/home/micro.nix
     ../../modules/home/mpv.nix
     ../../modules/home/nautilus.nix
     ../../modules/home/noctalia.nix
     ../../modules/home/packages.nix
     ../../modules/home/packageSearch.nix
-    ../../modules/home/starship.nix
     ../../modules/home/swayimg.nix
     ../../modules/home/theme.nix
     ../../modules/home/udiskie.nix
     ../../modules/home/umbriel.nix
     ../../modules/home/veracrypt.nix
     ../../modules/home/xdg.nix
-    ../../modules/home/yazi.nix
     ../../modules/home/zed.nix
-    ../../modules/home/zoxide.nix
-    ../../modules/home/zsh.nix
   ];
 
   # User identity

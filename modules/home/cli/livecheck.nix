@@ -1,6 +1,6 @@
 { pkgs, ... }:
 let
-  tools = pkgs.callPackage ../../pkgs/nixTools.nix { };
+  tools = pkgs.callPackage ../../../pkgs/nixTools.nix { };
 in
 {
   home.packages = [

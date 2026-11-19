@@ -29,7 +29,7 @@
     };
 
     font = {
-      name = "Inter";
+      name = builtins.head osConfig.fonts.fontconfig.defaultFonts.sansSerif;
       size = 11;
     };
 
@@ -57,7 +57,7 @@
   dconf.settings = {
     "org/gnome/desktop/interface" = {
       document-font-name = "${config.gtk.font.name} ${toString config.gtk.font.size}";
-      monospace-font-name = "JetBrainsMono Nerd Font 11";
+      monospace-font-name = "${builtins.head osConfig.fonts.fontconfig.defaultFonts.monospace} 11";
     };
 
     "org/gnome/desktop/privacy" = {

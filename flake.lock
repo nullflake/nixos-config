@@ -3,11 +3,11 @@
     "desktop-icons": {
       "flake": false,
       "locked": {
-        "lastModified": 1792265819,
-        "narHash": "sha256-9Cyv2EZWs43Ee60fjyzeg0Gzx1OZ5VuorODFo7GSzHM=",
+        "lastModified": 1795117701,
+        "narHash": "sha256-RRMNIl/Kv0rHD+sJIgBNmhvtEGXdSQmoi9+9v9KBGYs=",
         "owner": "nullflake",
         "repo": "desktop-icons",
-        "rev": "8ba52af0688bcde951ade15a3e15858a6efbd0d2",
+        "rev": "4b404ecf6dabac124f7fcf914ed834dc25036b9b",
         "type": "github"
       },
       "original": {

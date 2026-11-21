@@ -123,6 +123,7 @@ def check_input(client, name, node):
             client, name, repository, current, latest, ref or "default branch"
         )
         if repository.lower() == "nixos/nixpkgs" and result.status == "update":
+            result.detail = result.detail.split("; ", 1)[1]
             result.compact = "new revision"
             latest_date = client.github_revision_date(repository, latest)
             timestamp = locked.get("lastModified")
@@ -396,7 +397,7 @@ def main():
     parser.add_argument(
         "--details",
         action="store_true",
-        help="also show revisions, source references and nixpkgs commit counts",
+        help="also show revisions and source references",
     )
     parser.add_argument(
         "--notify-icon",

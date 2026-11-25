@@ -1,17 +1,5 @@
 {
   xdg.desktopEntries = {
-    apple-music = {
-      name = "Apple Music";
-      exec = "brave-origin --app=https://music.apple.com/";
-      icon = "apple-music";
-      categories = [
-        "AudioVideo"
-        "Audio"
-        "Player"
-      ];
-      settings.StartupWMClass = "brave-music.apple.com__-Default";
-    };
-
     "dev.noctalia.Noctalia" = {
       name = "Noctalia";
       exec = "noctalia --daemon";

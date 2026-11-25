@@ -16,6 +16,7 @@
 
     # Media & games
     cava
+    deezer-desktop
     heroic
     spotify
     stremio-linux-shell

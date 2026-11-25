@@ -1,3 +1,9 @@
+# Deezer Desktop - WS 4
+[[window_rule]]
+match.app_id = "^dev\\.aunetx\\.deezer$"
+default_workspace = 4
+default_maximize = true
+
 # GNOME Calculator - float
 [[window_rule]]
 match.app_id = "^org.gnome.Calculator$"
@@ -74,12 +80,6 @@ default_floating_size_px = { width = 540, height = 1170 }
 match.app_id = "^dev\\.noctalia\\.UmbrielSharePicker$"
 default_floating = true
 default_floating_size_px = { width = 640, height = 500 }
-
-# Spotify - WS 4
-[[window_rule]]
-match.app_id = "^spotify$"
-default_workspace = 4
-default_maximize = true
 
 # Steam - WS 5
 [[window_rule]]

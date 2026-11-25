@@ -50,7 +50,7 @@ margin_edge = 16
 reserve_space = false
 
 [hooks]
-started = "helium & kitty & zeditor & obsidian & spotify"
+started = "helium & kitty & zeditor & obsidian & deezer-desktop"
 
 [idle]
 behavior_order = [ "lock", "screen-off", "lock-and-suspend" ]

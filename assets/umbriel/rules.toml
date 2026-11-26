@@ -47,6 +47,12 @@ match.app_id = "^org.gnome.Nautilus$"
 default_floating = true
 default_floating_size_px = { width = 1280, height = 720 }
 
+# Luciole and file chooser - float
+[[window_rule]]
+match.app_id = "^dev\\.noctalia\\.luciole(?:-chooser)?$"
+default_floating = true
+default_floating_size_px = { width = 1280, height = 720 }
+
 # Noctalia - float
 [[window_rule]]
 match.app_id = "^dev.noctalia.Noctalia$"

@@ -1,10 +1,10 @@
 {
   config,
+  lib,
   osConfig,
   pkgs,
   ...
 }:
-
 {
   home.pointerCursor = {
     enable = true;
@@ -32,16 +32,6 @@
       name = builtins.head osConfig.fonts.fontconfig.defaultFonts.sansSerif;
       size = 11;
     };
-
-    gtk3.bookmarks = [
-      "file://${config.xdg.userDirs.download}"
-      "file://${config.xdg.userDirs.documents}"
-      "file://${config.xdg.userDirs.pictures}"
-      "file://${config.xdg.userDirs.videos}"
-      "file://${config.xdg.userDirs.extraConfig.PRIVATE}"
-      "file://${config.home.homeDirectory}/.config"
-      "file://${config.home.homeDirectory}/.local"
-    ];
   };
 
   qt = {

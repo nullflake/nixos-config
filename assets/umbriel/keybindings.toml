@@ -3,7 +3,7 @@
 # apps
 "Mod+T" = "spawn kitty"
 "Mod+Y" = "spawn kitty -e yazi"
-"Mod+F" = "spawn nautilus"
+"Mod+F" = "spawn luciole"
 "Mod+B" = "spawn helium"
 "Mod+Z" = "spawn zeditor"
 

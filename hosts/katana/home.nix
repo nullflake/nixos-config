@@ -15,11 +15,13 @@
     ../../modules/home/desktopEntries.nix
     ../../modules/home/environment.nix
     ../../modules/home/kitty.nix
+    ../../modules/home/luciole.nix
     ../../modules/home/mangohud.nix
     ../../modules/home/mpv.nix
     ../../modules/home/nautilus.nix
     ../../modules/home/noctalia.nix
     ../../modules/home/packages.nix
+    ../../modules/home/gtkBookmarks.nix
     ../../modules/home/nixTools.nix
     ../../modules/home/swayimg.nix
     ../../modules/home/theme.nix

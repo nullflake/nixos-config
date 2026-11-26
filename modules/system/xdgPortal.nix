@@ -1,4 +1,15 @@
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  fileChoosers = [
+    "luciole"
+    "gnome"
+  ];
+in
 {
   xdg.portal = {
     enable = true;
@@ -16,18 +27,13 @@
         "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
       };
 
-      /*
-        Umbriel and Hyprland ship their own <desktop>-portals.conf files,
-        which take precedence over the generic portals.conf. Override the
-        file chooser in both so the GNOME picker is used while keeping the
-        compositor portal first for its own interfaces.
-      */
+      # Keep each compositor first for its own interfaces.
       umbriel = {
         default = [
           "umbriel"
           "gtk"
         ];
-        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
+        "org.freedesktop.impl.portal.FileChooser" = fileChoosers;
       };
 
       hyprland = {
@@ -35,8 +41,15 @@
           "hyprland"
           "gtk"
         ];
-        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
+        "org.freedesktop.impl.portal.FileChooser" = fileChoosers;
       };
     };
   };
+
+  systemd.user.services.xdg-desktop-portal.restartTriggers = lib.mapAttrsToList (
+    desktop: _:
+    config.environment.etc."xdg/xdg-desktop-portal/${
+      lib.optionalString (desktop != "common") "${desktop}-"
+    }portals.conf".source
+  ) (lib.filterAttrs (_: preferences: preferences != { }) config.xdg.portal.config);
 }

@@ -40,7 +40,14 @@ in
       # Mail
       // mimeDefaults "proton-mail.desktop" [
         "x-scheme-handler/mailto"
-      ];
+      ]
+      # Directories
+      // {
+        "inode/directory" = [
+          "dev.noctalia.luciole.desktop"
+          "org.gnome.Nautilus.desktop"
+        ];
+      };
   };
 
   xdg.userDirs = {

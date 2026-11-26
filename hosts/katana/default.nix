@@ -22,6 +22,7 @@ in
     ../../modules/system/homeAssistant.nix
     ../../modules/system/locale.nix
     ../../modules/system/localsend.nix
+    ../../modules/system/luciole.nix
     ../../modules/system/memory.nix
     ../../modules/system/network.nix
     ../../modules/system/nh.nix

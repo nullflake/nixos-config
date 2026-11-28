@@ -13,6 +13,7 @@ let
     browser = {
       view_mode = "grid";
       chooser_view_mode = "grid";
+      operations_button = "busy";
     };
   };
   folderViews = toml.generate "luciole-default-folder-views.toml" {
@@ -30,15 +31,10 @@ let
         uri = "trash:///";
         label = "Trash";
       }
-      {
-        uri = "network:///";
-        label = "Network";
-      }
     ];
     place_separators = [
       (builtins.length folderPlaces)
       (builtins.length localPlaces)
-      (builtins.length localPlaces + 1)
     ];
   };
   resetLuciole = import ../../lib/resetHomeFiles.nix { inherit lib pkgs; } {
